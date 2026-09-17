@@ -1,0 +1,14 @@
+C:\Users\sallo\OneDrive\Documents\GitHub\Monopoly_Datos_I\Monopoly\bin\Debug\net10.0\Monopoly.exe
+C:\Users\sallo\OneDrive\Documents\GitHub\Monopoly_Datos_I\Monopoly\bin\Debug\net10.0\Monopoly.deps.json
+C:\Users\sallo\OneDrive\Documents\GitHub\Monopoly_Datos_I\Monopoly\bin\Debug\net10.0\Monopoly.runtimeconfig.json
+C:\Users\sallo\OneDrive\Documents\GitHub\Monopoly_Datos_I\Monopoly\bin\Debug\net10.0\Monopoly.dll
+C:\Users\sallo\OneDrive\Documents\GitHub\Monopoly_Datos_I\Monopoly\bin\Debug\net10.0\Monopoly.pdb
+C:\Users\sallo\OneDrive\Documents\GitHub\Monopoly_Datos_I\Monopoly\obj\Debug\net10.0\Monopoly.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\sallo\OneDrive\Documents\GitHub\Monopoly_Datos_I\Monopoly\obj\Debug\net10.0\Monopoly.AssemblyInfoInputs.cache
+C:\Users\sallo\OneDrive\Documents\GitHub\Monopoly_Datos_I\Monopoly\obj\Debug\net10.0\Monopoly.AssemblyInfo.cs
+C:\Users\sallo\OneDrive\Documents\GitHub\Monopoly_Datos_I\Monopoly\obj\Debug\net10.0\Monopoly.csproj.CoreCompileInputs.cache
+C:\Users\sallo\OneDrive\Documents\GitHub\Monopoly_Datos_I\Monopoly\obj\Debug\net10.0\Monopoly.dll
+C:\Users\sallo\OneDrive\Documents\GitHub\Monopoly_Datos_I\Monopoly\obj\Debug\net10.0\refint\Monopoly.dll
+C:\Users\sallo\OneDrive\Documents\GitHub\Monopoly_Datos_I\Monopoly\obj\Debug\net10.0\Monopoly.pdb
+C:\Users\sallo\OneDrive\Documents\GitHub\Monopoly_Datos_I\Monopoly\obj\Debug\net10.0\Monopoly.genruntimeconfig.cache
+C:\Users\sallo\OneDrive\Documents\GitHub\Monopoly_Datos_I\Monopoly\obj\Debug\net10.0\ref\Monopoly.dll
