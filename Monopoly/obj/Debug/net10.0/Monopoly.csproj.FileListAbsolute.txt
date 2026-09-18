@@ -12,3 +12,4 @@ C:\Users\sallo\OneDrive\Documents\GitHub\Monopoly_Datos_I\Monopoly\obj\Debug\net
 C:\Users\sallo\OneDrive\Documents\GitHub\Monopoly_Datos_I\Monopoly\obj\Debug\net10.0\Monopoly.pdb
 C:\Users\sallo\OneDrive\Documents\GitHub\Monopoly_Datos_I\Monopoly\obj\Debug\net10.0\Monopoly.genruntimeconfig.cache
 C:\Users\sallo\OneDrive\Documents\GitHub\Monopoly_Datos_I\Monopoly\obj\Debug\net10.0\ref\Monopoly.dll
+C:\Users\sallo\OneDrive\Documents\GitHub\Monopoly_Datos_I\Monopoly\obj\Debug\net10.0\Monopoly.sourcelink.json

@@ -1,0 +1,10 @@
+Ok avanzamos bastante
+
+Falta 
+-> Turnos
+-> Tablero
+-> Propiedades
+
+De Casillas
+-> Definir la logica restante de Propiedades
+-> Definir el polimorfismo con la accion que realiza la Propiedades
