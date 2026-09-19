@@ -11,5 +11,11 @@ class NodoTurno
 class ListaTurnos
 {
     NodoTurno tail; 
-    
+    NodoTurno actual; 
+    //Constructor
+
+    //Agregar Nodo
+
+    //Tirar dados
+
 }

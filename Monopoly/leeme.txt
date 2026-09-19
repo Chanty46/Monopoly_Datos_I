@@ -8,3 +8,18 @@ Falta
 De Casillas
 -> Definir la logica restante de Propiedades
 -> Definir el polimorfismo con la accion que realiza la Propiedades
+
+De jugador
+-> Implementar "Tiene Carta Salir de Carcel" AKA guardar cartas
+
+Chances 
+-> Implementar class evento 
+-> Implementar la herencia
+-> Implementar nodo evento y su lista circular, ademas no es necesario mover fisicamente las cartas, pues simplemente podemos tener una variable que guarde la carta actual
+-> Ocupamos un class juego que lo orquestre todo
+
+AHORA 
+
+Lo mas importante seria aplicar el juego de manera LOCAL y dejarlo listo
+
+Luego tocaria implementar la funcionalidad de la tarjeta, SOCKET TCP y dado en la rasperry

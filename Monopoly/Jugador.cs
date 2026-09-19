@@ -1,4 +1,6 @@
 
+using System.Dynamic;
+
 namespace Monopoly;
 class Jugador
 {
@@ -9,7 +11,7 @@ class Jugador
     private bool activo;
     private NodoCasilla nodoActual; // Única referencia necesaria
     private ListaPropiedades propiedades; 
-
+    private bool estaEncarcelado; 
     public Jugador(int newID, string newNombre, NodoCasilla nodoInicio)
     {
         ID = newID;
@@ -19,6 +21,7 @@ class Jugador
         activo = true;
         nodoActual = nodoInicio;
         propiedades = new ListaPropiedades();
+        estaEncarcelado = false;
     }
 
     // ================= GETTERS Y SETTERS =================
@@ -26,6 +29,7 @@ class Jugador
     public string getNombre() { return nombre; }
     public int getSaldo() { return saldo; }
     public int getTurnosPerdidos() { return turnosPerdidos; }
+    public bool getEstaEncarcelado() {return estaEncarcelado;}
     public bool isActivo() { return activo; }
     public NodoCasilla getNodoActual() { return nodoActual; }
     public ListaPropiedades getPropiedades() {return propiedades; }
@@ -34,8 +38,10 @@ class Jugador
     public void setTurnosPerdidos(int newTurnos) { turnosPerdidos = newTurnos; }
     public void setActivo(bool newActivo) { activo = newActivo; }
     public void setNodoActual(NodoCasilla newNodo) { nodoActual = newNodo; }
+    public void setEstaEncarcelado(bool estado) { estaEncarcelado = estado; }
 
-    public bool isEncarcelado() { return (turnosPerdidos > 0); }
+
+    
 }
 
 // in the deepest ocean... 

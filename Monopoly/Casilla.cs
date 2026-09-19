@@ -38,6 +38,7 @@ class Propiedad : Casilla
     private int precioDeCompra;
     private int alquiler;
     private string grupo; // El grupo de propiedades sera el conjunto de colores
+    private int grupoSize;
     
     // Duenio
     private Jugador duenio;
@@ -47,22 +48,24 @@ class Propiedad : Casilla
     private bool tieneHotel;
     private bool estaHipotecada;
 
-    public Propiedad(string newNombre, int newID, int newPrecio, int newAlquiler, string newGrupo) 
+    public Propiedad(string newNombre, int newID, int newPrecio, int newAlquiler, string newGrupo, int newGrupoSize) 
         : base(newNombre, newID)
     {
         precioDeCompra = newPrecio;
         alquiler = newAlquiler;
         grupo = newGrupo;
+        grupoSize = newGrupoSize;
         casasPuestas = 0;
         tieneHotel = false;
         estaHipotecada = false;
-        duenio = null;
+        duenio = null; //Aun no tiene duenio entonces no podemos solventar esto mismo
     }
 
     // ================= GETTERS Y SETTERS =================
     public int getPrecioDeCompra() { return precioDeCompra; }
     public int getAlquiler() { return alquiler; }
     public string getGrupo() { return grupo; }
+    public int getGrupoSize() {return grupoSize;}
     public Jugador getDuenio() { return duenio; }
     public int getCasasPuestas() { return casasPuestas; }
     public bool getTieneHotel() { return tieneHotel; }
@@ -100,7 +103,7 @@ class Propiedad : Casilla
         } 
     }
 
-    public void comprar(Jugador comprador)
+    public void comprar(Jugador comprador) // REQUIERE LA TARJETA ELECTRONICA
     {
         // Caso 1, tiene duenio!
         if (tieneDuenio())
@@ -164,14 +167,9 @@ class CasillaEvento : Casilla
  // Por el momento se quedara asi 
 }
 
-class CasillaEspecial : Casilla
+class CasillaEspecial : Casilla //Realmente esta casilla es solo para formalidades pero no sirve de mucho
 {
     public CasillaEspecial(string nombre, int id) : base(nombre, id) { }
-
-    public virtual void aplicarCasilla(Jugador jugador)
-    {
-        return; // Este de aqui cambiara
-    }
 }
 
 class CasillaInicial : CasillaEspecial
@@ -196,8 +194,10 @@ class CasillaCarcel : CasillaEspecial
 
     public override void aplicarCasilla(Jugador jugador)
     {
-        if (jugador.isEncarcelado())
+        if (jugador.getEstaEncarcelado())
         {
+
+            //Aplicar carta salir de carcel!! 
             jugador.setTurnosPerdidos(jugador.getTurnosPerdidos() - 1);
         }
     }
@@ -206,10 +206,7 @@ class CasillaCarcel : CasillaEspecial
 class CasillaParqueoLibre : CasillaEspecial {
     public CasillaParqueoLibre(string nombre, int id) : base(nombre, id) { }
 
-    public override void aplicarCasilla(Jugador jugador)
-    {
-        // No realiza ninguna acción
-    }
+    // No es necesario hacer override al metodo original, pues esta casilla no hace nada
 }
 
 class CasillaPolicia : CasillaEspecial
@@ -219,12 +216,7 @@ class CasillaPolicia : CasillaEspecial
     public override void aplicarCasilla(Jugador jugador)
     {
         jugador.setTurnosPerdidos(3);
-        // La lógica del movimiento a la Cárcel la ejecuta el Tablero o el Banco 
-        // Hay que decidir cual sera el ID de la carcel 
+        jugador.setEstaEncarcelado(true);
+        //Ahora, del resto se encargará la clase tablero
     }
-}
-
-class Eventos
-{
-    
 }

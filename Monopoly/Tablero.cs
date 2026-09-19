@@ -29,6 +29,7 @@ class Tablero
 {
     private NodoCasilla head; //Sera el inicio.
     private NodoCasilla tail; 
+    
     private int casasRestantes; //Aumentan el valor de la renta
     private int hotelesRestantes; //Aumentan el valor de la renta
 
@@ -72,6 +73,10 @@ class Tablero
         }
     } 
 
+    // Para efectos de este proyecto, no se ocupa remover ni insertar en medio de una casilla, ya que el tablero es fijo, como mencione, solo sirve el agregarCasilla
+    // Luego seria buscarPorID que el id es la posicion en la que la casilla se encuentra
+    // esto nos sirve para "teledirigir" a nuestros jugadores directo a una casilla sahur
+
     public NodoCasilla buscarCasillaPorID(int id)
     { if (head == null) {return null;}
 
@@ -94,7 +99,7 @@ class Tablero
 
    public void moverJugadorACasilla(Jugador jugador, int idDestino)
     {
-    NodoCasilla destino = buscarCasillaPorID(idDestino);
+    NodoCasilla destino = buscarCasillaPorID(idDestino); //Como solo guardamos los ID, aqui es importante mover al jugador.
 
     if (destino != null)
     {
@@ -103,13 +108,13 @@ class Tablero
     }
 
     public void moverJugadorPorDados(Jugador jugador, int pasosDados)
-    { for (int i = 0; i < pasosDados; i++)
+    { for (int i = 0; i < pasosDados; i++) //Ciclo for donde nos movemos de uno a uno hasta alcanzar la cantidad de pasos dados
         {
         // Avanzamos al siguiente nodo y actualizamos la referencia del jugador inmediatamente
         NodoCasilla siguienteNodo = jugador.getNodoActual().getSiguiente(); //Es decir, el algoritmo primero reconoce cual es el siguiente paso a dar y lo da.
         jugador.setNodoActual(siguienteNodo);
 
-        // Si en este paso cayó/pasó por el inicio (head), cobra los $200
+        //Revisar si el paso/cayo en la principal
         if (jugador.getNodoActual() == getHead())
             {
             jugador.getNodoActual().getCasilla().aplicarCasilla(jugador); //Del nodo obtendriamos la casilla de salida, y esta misma aplica el metodo al jugador
@@ -118,6 +123,17 @@ class Tablero
 
     // Al terminar todos los pasos, ejecutamos la acción de la casilla final
     jugador.getNodoActual().getCasilla().aplicarCasilla(jugador);
+
+    // Revisar si el jugador fue encarcelado
+    fueEncarcelado(jugador); //Si fue encarcelado, enviar a la chorpa
+    }
+
+    public void fueEncarcelado(Jugador jugador)
+    {                                                                                           //Es decir NO esta en la carcel:
+       if (jugador.getEstaEncarcelado() && jugador.getNodoActual().getCasilla().getIdCasilla() != 1)
+        {
+            moverJugadorACasilla(jugador, 1); //suponiendo que el uno es la carcel
+        }
     }
 
 }
