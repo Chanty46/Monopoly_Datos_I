@@ -65,6 +65,8 @@ class ListaPropiedades
         }
 
         return total;
-
-    
     }
+
+    // De todas las propiedades, buscar si se tiene todas las de un grupo
+    // la logica seria buscar entre todas las listas y ver si se tiene un grupo completo
+}

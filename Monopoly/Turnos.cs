@@ -11,6 +11,5 @@ class NodoTurno
 class ListaTurnos
 {
     NodoTurno tail; 
-
-
+    
 }
