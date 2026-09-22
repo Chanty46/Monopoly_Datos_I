@@ -103,3 +103,55 @@ class ListaCircularCartas
         return cartaTomada;
     }
 }
+
+class MazoCartas{
+public static ListaCircularCartas CrearMazoCartas()
+    {
+        ListaCircularCartas mazo = new ListaCircularCartas();
+
+        // ganar dinero, se harán varias cambiando el motivo
+        mazo.agregarCarta(new CartaEvento(
+            1, 
+            "Recibes $50 de regalo.", 
+            j => j.setSaldo(j.getSaldo() + 50)
+        ));
+
+        // pierde dinero, se harán varias cambiando el motivo
+        mazo.agregarCarta(new CartaEvento(
+            2, 
+            "Paga la tasa escolar de $150.", 
+            j => j.setSaldo(j.getSaldo() - 150)
+        ));
+
+        // va al inicio del tablero
+        mazo.agregarCarta(new CartaEvento(
+            3, 
+            "Avanza hasta la Salida. Cobra $200.", 
+            j => 
+            {
+                //j.setNodoActual(); debe completarse cuando se defina la casilla inicial
+                j.setSaldo(j.getSaldo() + 200);
+            }
+        ));
+
+
+        //retrocede 3 casillas
+        mazo.agregarCarta(new CartaEvento(
+            4, 
+            "Retrocede 3 casillas.", 
+            j => j.setNodoActual(j.getNodoActual().getAnterior().getAnterior().getAnterior()) //de forma proviciona
+        ));
+
+        //avanza 3 casillas
+        mazo.agregarCarta(new CartaEvento(
+            5, 
+            "Avanza 3 casillas.", 
+            j => j.setNodoActual(j.getNodoActual().getSiguiente().getSiguiente().getSiguiente()) //de forma proviciona
+        ));
+
+
+        //añadir enviar al inicio y enviar a la carcel cuando estén referenciadas
+        return mazo;
+    }
+}
+    
