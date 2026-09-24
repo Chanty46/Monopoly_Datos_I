@@ -11,7 +11,6 @@ class NodoPropiedad
         siguiente = null;
     }
 
-    // Getters y Setters
     public Propiedad getPropiedad() { return propiedad; }
     public NodoPropiedad getSiguiente() { return siguiente; }
     public void setSiguiente(NodoPropiedad siguiente) { this.siguiente = siguiente; }
@@ -28,10 +27,9 @@ class ListaPropiedades
         size = 0;
     }
 
-    //Getters 
+    public int getSize() { return size; }
+    public NodoPropiedad getHead() { return head; }
 
-
-    // Agregar una propiedad comprada al final de la lista
     public void agregarPropiedad(Propiedad nuevaPropiedad)
     {
         NodoPropiedad nuevoNodo = new NodoPropiedad(nuevaPropiedad);
@@ -52,7 +50,6 @@ class ListaPropiedades
         size++;
     }
 
-    // Calcular el valor total de las propiedades (para calcular el patrimonio final)
     public int calcularValorTotal()
     {
         int total = 0;
@@ -65,6 +62,5 @@ class ListaPropiedades
         }
 
         return total;
-
-    
     }
+}
