@@ -1,0 +1,1 @@
+//En este documento vamos a ir haciendo los registros de las transacciones

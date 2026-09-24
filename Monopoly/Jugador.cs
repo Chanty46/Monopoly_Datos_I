@@ -12,6 +12,8 @@ class Jugador
     private NodoCasilla nodoActual; // Única referencia necesaria
     private ListaPropiedades propiedades; 
     private bool estaEncarcelado; 
+    private bool bancarrotaInminente;
+    private bool enBancarrota;
     public Jugador(int newID, string newNombre, NodoCasilla nodoInicio)
     {
         ID = newID;
@@ -22,6 +24,8 @@ class Jugador
         nodoActual = nodoInicio;
         propiedades = new ListaPropiedades();
         estaEncarcelado = false;
+        enBancarrota = false;
+        bancarrotaInminente = false;
     }
 
     // ================= GETTERS Y SETTERS =================
@@ -33,17 +37,24 @@ class Jugador
     public bool isActivo() { return activo; }
     public NodoCasilla getNodoActual() { return nodoActual; }
     public ListaPropiedades getPropiedades() {return propiedades; }
+    public bool getEnBancarrota() {return enBancarrota; }
+    public bool getBancarrotaInminente() {return bancarrotaInminente; }
+    
 
     public void setSaldo(int newSaldo) { saldo = newSaldo; }
     public void setTurnosPerdidos(int newTurnos) { turnosPerdidos = newTurnos; }
     public void setActivo(bool newActivo) { activo = newActivo; }
     public void setNodoActual(NodoCasilla newNodo) { nodoActual = newNodo; }
     public void setEstaEncarcelado(bool estado) { estaEncarcelado = estado; }
+    public void setEnBancarrota(bool newValue) {enBancarrota = newValue; }
+    public void setBancarrotaInminente(bool newValue){bancarrotaInminente = newValue; }
 
 
-    
+    //Métodos
+
 }
 
 // in the deepest ocean... 
 // the bottom of the sea...
-// your eyes, they turn me...
+// your eyes...
+//  they turn me...

@@ -87,6 +87,7 @@ class ListaPropiedades
             {
                 cantidadActual++;
             }
+            aux = aux.getSiguiente();
         }
         return cantidadActual == cantidadGrupo;
     }

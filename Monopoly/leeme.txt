@@ -23,3 +23,13 @@ AHORA
 Lo mas importante seria aplicar el juego de manera LOCAL y dejarlo listo
 
 Luego tocaria implementar la funcionalidad de la tarjeta, SOCKET TCP y dado en la rasperry
+
+
+/////////////////////////////////////////////////// 
+
+Despues del Commit "avance casilla y demas"
+
+porque los metodos, alquiler, aplicar casilla, mover dado turnos pasaron a ser bool???
+Facil, pues en banco se debe saber si el jugador esta a salvo de la bancarrota, ahora el orden iria asi
+CobrarAlquiler ---(se logro cobrar?)--> mover dado turnos ---(es ejecutado desde el banco)---> banco(recibe datos y procesa)
+entonces asi todos los movimientos no s

@@ -107,25 +107,31 @@ class Tablero
     }
     }
 
-    public void moverJugadorPorDados(Jugador jugador, int pasosDados)
-    { for (int i = 0; i < pasosDados; i++) //Ciclo for donde nos movemos de uno a uno hasta alcanzar la cantidad de pasos dados
+    public bool moverJugadorPorDados(Jugador jugador, int pasosDados)
+    { 
+        bool res = true;
+        for (int i = 0; i < pasosDados; i++) //Ciclo for donde nos movemos de uno a uno hasta alcanzar la cantidad de pasos dados
         {
         // Avanzamos al siguiente nodo y actualizamos la referencia del jugador inmediatamente
         NodoCasilla siguienteNodo = jugador.getNodoActual().getSiguiente(); //Es decir, el algoritmo primero reconoce cual es el siguiente paso a dar y lo da.
         jugador.setNodoActual(siguienteNodo);
 
         //Revisar si el paso/cayo en la principal
-        if (jugador.getNodoActual() == getHead())
+        if (jugador.getNodoActual() == head)
             {
-            jugador.getNodoActual().getCasilla().aplicarCasilla(jugador); //Del nodo obtendriamos la casilla de salida, y esta misma aplica el metodo al jugador
+            res = jugador.getNodoActual().getCasilla().aplicarCasilla(jugador); //Del nodo obtendriamos la casilla de salida, y esta misma aplica el metodo al jugador
             }
-        }
-
+        } 
     // Al terminar todos los pasos, ejecutamos la acción de la casilla final
-    jugador.getNodoActual().getCasilla().aplicarCasilla(jugador);
+    if (jugador.getNodoActual() != head)
+        {
+        res = jugador.getNodoActual().getCasilla().aplicarCasilla(jugador); //Dado que en el algoritmo de mover por dados, al hacer el for se aplica nodo actual, basicamente aqui lo excluimos
+         // En caso de que el jugador se quede en la casilla, no que simplemente pase por ella
+        }
 
     // Revisar si el jugador fue encarcelado
     fueEncarcelado(jugador); //Si fue encarcelado, enviar a la chorpa
+    return res;
     }
 
     public void fueEncarcelado(Jugador jugador)
