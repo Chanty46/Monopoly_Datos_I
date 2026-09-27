@@ -1,3 +1,6 @@
+using System.ComponentModel;
+using System.Security.Cryptography.X509Certificates;
+
 namespace Monopoly;
 
 class NodoPropiedad
@@ -52,6 +55,37 @@ class ListaPropiedades
         size++;
     }
 
+public bool eliminarPropiedad(Propiedad propiedadEliminar) //El bool es para saber si se ejecuto el eliminar la propiedad de manera correcta
+{
+    if (head == null || propiedadEliminar == null) //Casos extremos si no hay head o la propiedad dada es nula
+    {
+        return false;
+    }
+
+    // Caso 1: La propiedad a eliminar está en la cabeza (head)
+    if (head.getPropiedad() == propiedadEliminar)
+    {
+        head = head.getSiguiente(); // Desplazamos la cabeza al siguiente nodo
+        size--;
+        return true;
+    }
+
+    // Caso 2: La propiedad está en medio o al final de la lista
+    NodoPropiedad aux = head;
+    while (aux.getSiguiente() != null)
+    {
+        if (aux.getSiguiente().getPropiedad() == propiedadEliminar)
+        {
+            // Reconectamos el puntero para saltarnos el nodo a eliminar
+            aux.setSiguiente(aux.getSiguiente().getSiguiente());
+            size--;
+            return true;
+        }
+        aux = aux.getSiguiente();
+    }
+
+    return false; // La propiedad no pertenecía a este jugador
+}
     // Calcular el valor total de las propiedades (para calcular el patrimonio final)
     public int calcularValorTotal()
     {
@@ -98,7 +132,7 @@ class ListaPropiedades
     int casasActuales = propiedadAConstruir.getCasasPuestas();
 
     // Si ya tiene hotel o 5 casas, no se puede mejorar más
-    if (propiedadAConstruir.getTieneHotel() || casasActuales == 5) return false;
+    if (propiedadAConstruir.getTieneHotel() || casasActuales == 5) {return false; }
 
     NodoPropiedad aux = head;
     while (aux != null)
@@ -119,6 +153,64 @@ class ListaPropiedades
 
     return true; // Cumple con la regla para todas las demás del grupo
 }
+public bool puedeQuitarCasa(Propiedad propiedadAQuitar)
+{
+    string grupo = propiedadAQuitar.getGrupo();
+    int casasDespuesDeQuitar = propiedadAQuitar.getCasasPuestas() - 1; //el nombre de la variable se explica solo
+
+    if (casasDespuesDeQuitar < 0) return false;
+
+    NodoPropiedad aux = head;
+    while (aux != null)
+    {
+        Propiedad propiedadRevisada = aux.getPropiedad();
+
+        if (propiedadRevisada.getGrupo() == grupo && propiedadRevisada.getIdCasilla() != propiedadAQuitar.getIdCasilla())
+        {
+            if (propiedadRevisada.getCasasPuestas() > casasDespuesDeQuitar) //Esto de aqui es revisar si vamos a quedar desigual, en este caso se compara con las otras, usa la misma logica anterior solo que alreves
+            {                                                               //Asi evitamos problemas luego
+                return false;
+            }
+        }
+        aux = aux.getSiguiente();
+    }
+
+    return true;
+}
+
+public int contarFerrocarriles()
+    {
+        NodoPropiedad aux = head;
+        int res = 0;
+        while(aux != null)
+        {
+            if(aux.getPropiedad() is Ferrocarril)
+            {
+                if(aux.getPropiedad().getEstaHipotecada() == false) 
+                {
+                    res++; //Seria como contar ferrocarriles validos
+                }
+            }
+            aux = aux.getSiguiente();
+        }
+        return res;
+    }
+
+public int contarServicios()
+    {
+        NodoPropiedad aux = head;
+        int res = 0;
+        while(aux != null)
+        {
+            if(aux.getPropiedad() is CasillaServicio)
+            {
+                res++;
+            }
+            aux = aux.getSiguiente();
+        }
+        return res;
+
+    }
 
 }
 

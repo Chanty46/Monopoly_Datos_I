@@ -39,6 +39,7 @@ class Propiedad : Casilla
     // Dinero y Grupo
     private int precioDeCompra;
     private int alquiler;
+    private int alquilerBase;
     private string grupo; // El grupo de propiedades sera el conjunto de colores
     private int grupoSize;
     
@@ -55,6 +56,7 @@ class Propiedad : Casilla
     {
         precioDeCompra = newPrecio;
         alquiler = newAlquiler;
+        alquilerBase = alquiler;
         grupo = newGrupo;
         grupoSize = newGrupoSize;
         casasPuestas = 0;
@@ -72,6 +74,7 @@ class Propiedad : Casilla
     public int getCasasPuestas() { return casasPuestas; }
     public bool getTieneHotel() { return tieneHotel; }
     public bool getEstaHipotecada() { return estaHipotecada; }
+    public int getAlquilerBase() {return alquilerBase; }
 
     public void setPrecioDeCompra(int newPrecio) { precioDeCompra = newPrecio; }
     public void setAlquiler(int newAlquiler) { alquiler = newAlquiler; }
@@ -160,7 +163,74 @@ class Propiedad : Casilla
             // al cobrar la renta verificar que no este hipotecada, si esta hipotecada no cobra renta y esta mas chileadito. 
     }
 
-    //Mejorar casass
+    //Manejar casas
+
+    //Verificar que le alcanze la casa?, esto lo puede hacer el banco con ManejarAgregarCasa
+    public virtual bool agregarCasa(){
+        if (estaHipotecada || duenio.getPropiedades().puedeMejorar(this) == false || getTieneHotel())
+        {
+            return false;
+
+        } else {
+            if(getCasasPuestas() < 4)
+            {
+                setCasasPuestas(getCasasPuestas() + 1);
+                setAlquiler(calcularAlquilerActual());
+                return true;
+            } else {
+                setTieneHotel(true);
+                setAlquiler(calcularAlquilerActual());
+                return true;
+            }
+        }
+
+    }
+
+    public virtual bool removerCasa()
+{
+    if (estaHipotecada || !duenio.getPropiedades().puedeQuitarCasa(this))
+    {
+        return false;
+    }  if (tieneHotel) {
+        setTieneHotel(false);
+        setCasasPuestas(4); //Evitar errores
+        calcularAlquilerActual();
+        return true;
+    }
+
+    if (casasPuestas > 0)
+    {
+        setCasasPuestas(casasPuestas - 1);
+        setAlquiler(calcularAlquilerActual());
+        return true;
+    }
+
+    return false;
+}
+public virtual int calcularAlquilerActual()
+{
+    if (casasPuestas == 0 && !tieneHotel)
+    {
+        bool grupoCompleto = duenio.getPropiedades().tieneGrupo(this);
+        int multiplicadorGrupo = grupoCompleto ? 2 : 1; // ? es un operador ternario entonces decimos 2 si true, 1 si false pero mas corto
+        return getAlquilerBase() * multiplicadorGrupo;
+    }
+
+    int multiplicador = getTieneHotel() switch
+    {
+        true => 20,
+        false => getCasasPuestas() switch
+        {
+            4 => 15,
+            3 => 10,
+            2 => 6,
+            1 => 3,
+            _ => 1  //Cualquier otro valor
+        }
+    };
+
+    return getAlquilerBase() * multiplicador;
+}
 }
 
 class Ferrocarril : Propiedad
@@ -213,6 +283,9 @@ class Ferrocarril : Propiedad
         return false; // NO se logró cobrar
         //Igual que en Propiedad: falta resolver el caso de saldo insuficiente (bancarrota)
     }
+    public override bool agregarCasa(){return false;}
+    public override bool removerCasa(){return false;}
+    public override int calcularAlquilerActual(){return 0;}
 }
 
 class CasillaServicio : Propiedad
@@ -254,6 +327,9 @@ class CasillaServicio : Propiedad
         }
         return false;
     }
+    public override bool agregarCasa(){return false;}
+    public override bool removerCasa(){return false;}
+    public override int calcularAlquilerActual(){return 0;}
 }
 
 // EVENTOS
