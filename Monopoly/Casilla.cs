@@ -342,10 +342,30 @@ class CasillaEspecial : Casilla //Realmente esta casilla es solo para formalidad
 
 class CasillaEvento : CasillaEspecial
 {
-    public CasillaEvento(string nombre, int id) : base(nombre, id) { }
- //Logica 
- // Tenemos que crear una clase que contenga eventos y luego hacemos polimorfismo donde movemos a los jugadores, cambiamos sus variables, etc,
- // Por el momento se quedara asi 
+    private ListaCircularCartas mazoEventos;
+
+    public CasillaEvento(string nombre, int id, ListaCircularCartas mazoEventos) : base(nombre, id)
+    {
+        this.mazoEventos = mazoEventos;
+    }
+
+    // Getter y Setter para el mazo de eventos
+    public ListaCircularCartas getMazoEventos() { return mazoEventos; }
+    public void setMazoEventos(ListaCircularCartas nuevoMazo) { mazoEventos = nuevoMazo; }
+
+    public override bool aplicarCasilla(Jugador jugador)
+    {
+        if (mazoEventos != null) //validación por si el mazo está vacío
+        {
+            CartaEvento carta = mazoEventos.tomarCarta();
+            if (carta != null) //validacion por si la referencia carta esta vacia
+            {
+                //Aplica el efecto de la crta sobre el jugador (metodo en eventos.cs)
+                carta.aplicarEfecto(jugador);
+            }
+        }
+        return true;
+    }
 }
 
 class CasillaInicial : CasillaEspecial
