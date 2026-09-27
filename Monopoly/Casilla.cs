@@ -135,7 +135,7 @@ class Propiedad : Casilla
         {
             return true; //No se le cobra renta al propio jugador jaja o  si esta hipotecada no cobra renta
         } else {
-            if(jugador.getSaldo() > alquiler)
+            if(jugador.getSaldo() >= alquiler)
             {
             jugador.setSaldo(jugador.getSaldo() - alquiler); //asegurarnos de que le alcanze el alquiler al jugador
             duenio.setSaldo(duenio.getSaldo() + alquiler); //es como un traspaso de dinero, al jugador que cae sobre la propiedad pierde el dinero y al otro se le aumenta
@@ -194,7 +194,7 @@ class Propiedad : Casilla
     }  if (tieneHotel) {
         setTieneHotel(false);
         setCasasPuestas(4); //Evitar errores
-        calcularAlquilerActual();
+        setAlquiler(calcularAlquilerActual()); //Fix: guardar el nuevo alquiler calculado
         return true;
     }
 
@@ -274,7 +274,7 @@ class Ferrocarril : Propiedad
             _ => 0
         };
 
-        if (jugador.getSaldo() > montoACobrar)
+        if (jugador.getSaldo() >= montoACobrar)
         {
             jugador.setSaldo(jugador.getSaldo() - montoACobrar);
             getDuenio().setSaldo(getDuenio().getSaldo() + montoACobrar);
@@ -319,7 +319,7 @@ class CasillaServicio : Propiedad
         int valorPatrimonio = jugador.getPropiedades().calcularValorTotal();
         int montoACobrar = Math.Max(50, valorPatrimonio / 10); // Math Max devuelve el mayor entre 50 o el 10/ del patrimonio
 
-        if (jugador.getSaldo() > montoACobrar)
+        if (jugador.getSaldo() >= montoACobrar)
         {
             jugador.setSaldo(jugador.getSaldo() - montoACobrar);
             getDuenio().setSaldo(getDuenio().getSaldo() + montoACobrar);

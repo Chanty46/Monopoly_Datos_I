@@ -14,6 +14,9 @@ class Jugador
     private bool estaEncarcelado; 
     private bool bancarrotaInminente;
     private bool enBancarrota;
+    private Jugador? acreedorPendiente;
+    private int montoPendiente;
+
     public Jugador(int newID, string newNombre, NodoCasilla nodoInicio)
     {
         ID = newID;
@@ -26,6 +29,8 @@ class Jugador
         estaEncarcelado = false;
         enBancarrota = false;
         bancarrotaInminente = false;
+        acreedorPendiente = null;
+        montoPendiente = 0;
     }
 
     // ================= GETTERS Y SETTERS =================
@@ -33,25 +38,52 @@ class Jugador
     public string getNombre() { return nombre; }
     public int getSaldo() { return saldo; }
     public int getTurnosPerdidos() { return turnosPerdidos; }
-    public bool getEstaEncarcelado() {return estaEncarcelado;}
+    public bool getEstaEncarcelado() { return estaEncarcelado; }
     public bool isActivo() { return activo; }
     public NodoCasilla getNodoActual() { return nodoActual; }
-    public ListaPropiedades getPropiedades() {return propiedades; }
-    public bool getEnBancarrota() {return enBancarrota; }
-    public bool getBancarrotaInminente() {return bancarrotaInminente; }
-    
+    public ListaPropiedades getPropiedades() { return propiedades; }
+    public bool getEnBancarrota() { return enBancarrota; }
+    public bool getBancarrotaInminente() { return bancarrotaInminente; }
+    public Jugador? getAcreedorPendiente() { return acreedorPendiente; }
+    public int getMontoPendiente() { return montoPendiente; }
 
     public void setSaldo(int newSaldo) { saldo = newSaldo; }
     public void setTurnosPerdidos(int newTurnos) { turnosPerdidos = newTurnos; }
     public void setActivo(bool newActivo) { activo = newActivo; }
     public void setNodoActual(NodoCasilla newNodo) { nodoActual = newNodo; }
     public void setEstaEncarcelado(bool estado) { estaEncarcelado = estado; }
-    public void setEnBancarrota(bool newValue) {enBancarrota = newValue; }
-    public void setBancarrotaInminente(bool newValue){bancarrotaInminente = newValue; }
+    public void setEnBancarrota(bool newValue) { enBancarrota = newValue; }
+    public void setBancarrotaInminente(bool newValue) { bancarrotaInminente = newValue; }
+    public void setAcreedorPendiente(Jugador? acreedor) { acreedorPendiente = acreedor; }
+    public void setMontoPendiente(int monto) { montoPendiente = monto; }
 
+    // ================= METODOS DE ESTADO Y BANCARROTA =================
 
-    //Métodos
+    // Marca el estado de alerta antes de declarar bancarrota total, permitiendo al jugador hipotecar o vender casas
+    public void marcarBancarrotaInminente(Jugador? acreedor, int monto)
+    {
+        bancarrotaInminente = true;
+        acreedorPendiente = acreedor;
+        montoPendiente = monto;
+    }
 
+    // Se llama cuando el jugador reunio los fondos para pagar la deuda pendiente
+    public bool resolverBancarrota()
+    {
+        if (bancarrotaInminente && saldo >= montoPendiente)
+        {
+            saldo -= montoPendiente;
+            if (acreedorPendiente != null)
+            {
+                acreedorPendiente.setSaldo(acreedorPendiente.getSaldo() + montoPendiente);
+            }
+            bancarrotaInminente = false;
+            acreedorPendiente = null;
+            montoPendiente = 0;
+            return true;
+        }
+        return false;
+    }
 }
 
 // in the deepest ocean... 

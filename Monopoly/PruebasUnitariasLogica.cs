@@ -21,6 +21,7 @@ public static class PruebasUnitariasLogica
         ProbarPropiedad();
         ProbarListaPropiedades();
         ProbarTablero();
+        ProbarBanco();
 
         Console.WriteLine("\n================================================================================");
         Console.WriteLine($" RESUMEN FINAL: {pruebasExitosas}/{totalPruebas} pruebas superadas con exito.");
@@ -134,7 +135,7 @@ public static class PruebasUnitariasLogica
             $"=> Saldo conservado: {jugador.getSaldo()}");
 
         // Prueba 2.6: CasillaEvento - Verificacion de inicializacion
-        CasillaEvento evento = new CasillaEvento("Suerte", 7);
+        CasillaEvento evento = new CasillaEvento("Suerte", 7, null!);
         Verificar("2.6 CasillaEvento (inicializacion basica)", 
             evento.getNombre() == "Suerte" && evento.getIdCasilla() == 7,
             $"=> Nombre: {evento.getNombre()}, ID: {evento.getIdCasilla()}");
@@ -476,37 +477,44 @@ public static class PruebasUnitariasLogica
             jMov.getNodoActual().getCasilla().getIdCasilla() == 4,
             $"=> Casilla actual del jugador: ID {jMov.getNodoActual().getCasilla().getIdCasilla()} ({jMov.getNodoActual().getCasilla().getNombre()})");
 
-        // Prueba 6.4: Metodo moverJugadorPorDados() avance circular y paso por Salida (+200)
+        // Prueba 6.4: Metodo moverJugadorPorDados() solo mueve e informa paso por Salida (head)
         // Jugador en ID 4 da 3 pasos en tablero de 6 casillas:
         // Paso 1 -> ID 5 (Policia)
-        // Paso 2 -> ID 0 (Salida - Head) => cobra $200
-        // Paso 3 -> ID 1 (Carcel) => casilla destino final (como visita)
+        // Paso 2 -> ID 0 (Salida - Head) => detecta pasoPorSalida = true
+        // Paso 3 -> ID 1 (Carcel) => casilla destino final
         int saldoAntesDados = jMov.getSaldo(); // 200
-        tablero.moverJugadorPorDados(jMov, 3);
-        Verificar("6.4 moverJugadorPorDados() con paso por Salida", 
+        bool pasoPorSalida = tablero.moverJugadorPorDados(jMov, 3);
+        Verificar("6.4 moverJugadorPorDados() detecta paso por Salida", 
             jMov.getNodoActual().getCasilla().getIdCasilla() == 1 &&
-            jMov.getSaldo() == saldoAntesDados + 200,
-            $"=> Casilla final ID: {jMov.getNodoActual().getCasilla().getIdCasilla()}, Saldo: {jMov.getSaldo()} (+$200 por pasar por salida)");
+            pasoPorSalida == true &&
+            jMov.getSaldo() == saldoAntesDados,
+            $"=> Casilla final ID: {jMov.getNodoActual().getCasilla().getIdCasilla()}, Paso por salida: {pasoPorSalida}, Saldo: {jMov.getSaldo()}");
 
-        // Prueba 6.5: Metodo moverJugadorPorDados() al caer en CasillaPolicia
-        // Jugador en ID 1 da 4 pasos:
-        // ID 1 -> ID 2 -> ID 3 -> ID 4 -> ID 5 (CasillaPolicia)
-        // CasillaPolicia activa encarcelado=true, turnos=3.
-        // moverJugadorPorDados() llama a fueEncarcelado(), que lo teletransporta inmediatamente a la Carcel (ID 1).
+        // Prueba 6.5: Aplicar CasillaPolicia y luego teletransportar con fueEncarcelado()
+        // Jugador en ID 1 se mueve 4 pasos a ID 5 (CasillaPolicia).
+        // Al aplicar la casilla se marca encarcelado y con 3 turnos de sancion.
         tablero.moverJugadorPorDados(jMov, 4);
-        Verificar("6.5 moverJugadorPorDados() cayendo en Casilla Policia (va a carcel ID 1)", 
+        jMov.getNodoActual().getCasilla().aplicarCasilla(jMov);
+        Verificar("6.5 CasillaPolicia marca encarcelamiento y 3 turnos", 
             jMov.getEstaEncarcelado() == true && 
             jMov.getTurnosPerdidos() == 3 && 
-            jMov.getNodoActual().getCasilla().getIdCasilla() == 1,
-            $"=> Encarcelado: {jMov.getEstaEncarcelado()}, Turnos: {jMov.getTurnosPerdidos()}, Ubicacion final: ID {jMov.getNodoActual().getCasilla().getIdCasilla()}");
+            jMov.getNodoActual().getCasilla().getIdCasilla() == 5,
+            $"=> Encarcelado: {jMov.getEstaEncarcelado()}, Turnos: {jMov.getTurnosPerdidos()}, Ubicacion: ID {jMov.getNodoActual().getCasilla().getIdCasilla()}");
 
-        // Prueba 6.6: Metodo fueEncarcelado() directamente
-        // Si el jugador esta marcado encarcelado pero no esta en la carcel, fueEncarcelado() lo envia al ID 1
-        jMov.setNodoActual(tablero.buscarCasillaPorID(2)); // Lo forzamos a estar en ID 2
-        tablero.fueEncarcelado(jMov);
-        Verificar("6.6 fueEncarcelado() reubica al jugador en la carcel (ID 1)", 
-            jMov.getNodoActual().getCasilla().getIdCasilla() == 1,
-            $"=> Reubicado en casilla ID: {jMov.getNodoActual().getCasilla().getIdCasilla()}");
+        // Prueba 6.6: Metodo fueEncarcelado() en Tablero completo (reubica en ID 10)
+        // Creamos un tablero estandar donde existe la casilla 10 para probar la reubicacion
+        Tablero tableroCompleto = new Tablero();
+        for (int i = 0; i < 40; i++)
+        {
+            if (i == 10) tableroCompleto.agregarCasilla(new CasillaCarcel("Carcel", 10));
+            else tableroCompleto.agregarCasilla(new Casilla("Casilla " + i, i));
+        }
+        Jugador jPreso = new Jugador(99, "Preso", tableroCompleto.buscarCasillaPorID(30));
+        jPreso.setEstaEncarcelado(true);
+        tableroCompleto.fueEncarcelado(jPreso);
+        Verificar("6.6 fueEncarcelado() reubica al jugador en la carcel (ID 10)", 
+            jPreso.getNodoActual().getCasilla().getIdCasilla() == 10,
+            $"=> Reubicado en casilla ID: {jPreso.getNodoActual().getCasilla().getIdCasilla()}");
 
         // Prueba 6.7: Getters y Setters de casas/hoteles restantes del Tablero
         tablero.setCasasRestantes(28);
@@ -516,4 +524,212 @@ public static class PruebasUnitariasLogica
             $"=> Casas restantes: {tablero.getCasasRestantes()}, Hoteles restantes: {tablero.getHotelesRestantes()}");
         Console.WriteLine();
     }
+
+    // ============================================================================
+    // 7. PRUEBAS DE LA CLASE BANCO (INTEGRACION Y GESTION DEL JUEGO)
+    // ============================================================================
+    private static void ProbarBanco()
+    {
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine("--- [SECCION 7: PRUEBAS DE LA CLASE BANCO] ---");
+        Console.ResetColor();
+
+        Banco banco = new Banco();
+
+        // Prueba 7.1: Verificacion de inicializacion de Banco y tablero de 40 casillas
+        NodoCasilla head = banco.getTableroJuego().getHead();
+        NodoCasilla c10 = banco.getTableroJuego().buscarCasillaPorID(10);
+        NodoCasilla c39 = banco.getTableroJuego().buscarCasillaPorID(39);
+
+        bool tableroPoblado = head != null && 
+                              head.getCasilla().getIdCasilla() == 0 &&
+                              c10 != null && c10.getCasilla().getNombre() == "Carcel" &&
+                              c39 != null && c39.getCasilla().getNombre() == "Boardwalk";
+
+        Verificar("7.1 Inicializacion de Banco y 40 casillas", tableroPoblado,
+            $"=> Head: {head?.getCasilla().getNombre()} (0), Carcel: {c10?.getCasilla().getNombre()} (10), Ultima: {c39?.getCasilla().getNombre()} (39)");
+
+        // Prueba 7.2: Registrar jugadores en Banco
+        Jugador j1 = new Jugador(1, "Jugador 1", null!);
+        j1.setSaldo(1500);
+        Jugador j2 = new Jugador(2, "Jugador 2", null!);
+        j2.setSaldo(1500);
+
+        banco.registrarJugador(j1);
+        banco.registrarJugador(j2);
+
+        Verificar("7.2 Registro de jugadores en Banco",
+            j1.getNodoActual() == head && banco.getTurnosJugadores().getCantidadJugadores() == 2 && banco.getJugadorActual() == j1,
+            $"=> J1 en: {j1.getNodoActual().getCasilla().getNombre()}, Cantidad jugadores: {banco.getTurnosJugadores().getCantidadJugadores()}");
+
+        // Prueba 7.3: ProcesarTirada hacia casilla sin dueño (ID 1 - Mediterraneo)
+        // J1 tira dados = 1, llega a ID 1 (Mediterraneo, precio $60).
+        // No se debe cobrar nada aun porque no tiene dueño.
+        banco.ProcesarTirada(j1, 1);
+        Verificar("7.3 ProcesarTirada a propiedad sin duenio",
+            j1.getNodoActual().getCasilla().getIdCasilla() == 1 && j1.getSaldo() == 1500,
+            $"=> Casilla: {j1.getNodoActual().getCasilla().getNombre()} (ID 1), Saldo: {j1.getSaldo()}");
+
+        // Prueba 7.4: ProcesarCompra de la propiedad actual
+        // J1 compra Mediterraneo ($60). Saldo pasa de 1500 a 1440.
+        bool compraOk = banco.ProcesarCompra(j1);
+        Propiedad med = (Propiedad)j1.getNodoActual().getCasilla();
+        Verificar("7.4 ProcesarCompra de propiedad disponible",
+            compraOk && med.getDuenio() == j1 && j1.getSaldo() == 1440 && j1.getPropiedades().getSize() == 1,
+            $"=> Comprado: {compraOk}, Duenio: {med.getDuenio()?.getNombre()}, Saldo J1: {j1.getSaldo()}");
+
+        // Prueba 7.5: ProcesarFinTurno y ProcesarTirada de J2 cayendo en propiedad de J1
+        // Fin de turno pasa a J2. J2 tira 1 y cae en Mediterraneo (alquiler base $2).
+        banco.ProcesarFinTurno();
+        Verificar("7.5 ProcesarFinTurno avanza turno",
+            banco.getJugadorActual() == j2,
+            $"=> Turno actual ahora es: {banco.getJugadorActual().getNombre()}");
+
+        banco.ProcesarTirada(j2, 1); // J2 cae en Mediterraneo de J1
+        Verificar("7.5.1 Cobro de alquiler via ProcesarTirada",
+            j2.getSaldo() == 1500 - med.getAlquiler() && j1.getSaldo() == 1440 + med.getAlquiler(),
+            $"=> J2 pago renta: J2 saldo={j2.getSaldo()} (-{med.getAlquiler()}), J1 saldo={j1.getSaldo()} (+{med.getAlquiler()})");
+
+        // Prueba 7.6: ProcesarTirada con paso por Salida (+200)
+        // J1 esta en ID 1. Tira 39 dados -> da la vuelta completa y cae en ID 0 (Salida). Cruzo Salida -> +$200.
+        int saldoAntesVuelta = j1.getSaldo();
+        banco.ProcesarTirada(j1, 39);
+        Verificar("7.6 ProcesarTirada con vuelta y cobro de Salida (+$200)",
+            j1.getNodoActual().getCasilla().getIdCasilla() == 0 && j1.getSaldo() == saldoAntesVuelta + 200,
+            $"=> Posicion J1: {j1.getNodoActual().getCasilla().getNombre()} (ID 0), Saldo: {j1.getSaldo()} (+200)");
+
+        // Prueba 7.7: Caer en Policia (ID 30) manda a Carcel (ID 10)
+        // Movemos a J2 a ID 28 y tira 2 -> ID 30 (Vaya a la Carcel).
+        banco.getTableroJuego().moverJugadorACasilla(j2, 28);
+        banco.ProcesarTirada(j2, 2);
+        Verificar("7.7 Caer en Policia encarcela y traslada a Carcel (ID 10)",
+            j2.getEstaEncarcelado() == true && j2.getTurnosPerdidos() == 3 && j2.getNodoActual().getCasilla().getIdCasilla() == 10,
+            $"=> Encarcelado: {j2.getEstaEncarcelado()}, Turnos: {j2.getTurnosPerdidos()}, Ubicacion: ID {j2.getNodoActual().getCasilla().getIdCasilla()}");
+
+        // Prueba 7.8: Jugador encarcelado cumple sancion y no se mueve
+        banco.ProcesarTirada(j2, 5); // Intenta tirar
+        Verificar("7.8 Jugador encarcelado reduce turnos perdidos y no avanza",
+            j2.getTurnosPerdidos() == 2 && j2.getNodoActual().getCasilla().getIdCasilla() == 10,
+            $"=> Turnos restantes: {j2.getTurnosPerdidos()}, Ubicacion intacta: ID {j2.getNodoActual().getCasilla().getIdCasilla()}");
+
+        // Prueba 7.9: Bancarrota y verificacion de ganador unico
+        banco.ManejarBancarrota(j2, j1);
+        Jugador? ganador = banco.verificarGanador();
+        Verificar("7.9 ManejarBancarrota y verificarGanador",
+            j2.getEnBancarrota() == true && j2.isActivo() == false && ganador == j1,
+            $"=> J2 en bancarrota: {j2.getEnBancarrota()}, Ganador detectado: {ganador?.getNombre()}");
+
+        // Prueba 7.10: TirarDados genera valores validos entre 2 y 12
+        int dadosSuma = banco.TirarDados();
+        (int d1, int d2) = banco.TirarDadosDetallado();
+        Verificar("7.10 TirarDados y TirarDadosDetallado",
+            dadosSuma >= 2 && dadosSuma <= 12 && d1 >= 1 && d1 <= 6 && d2 >= 1 && d2 <= 6,
+            $"=> Suma: {dadosSuma}, Dado 1: {d1}, Dado 2: {d2}");
+
+        // Prueba 7.11: Construccion de casas (completar grupo Cafe: Mediterraneo ID 1 + Baltico ID 3)
+        Propiedad baltico = (Propiedad)banco.getTableroJuego().buscarCasillaPorID(3).getCasilla();
+        baltico.comprar(j1); // J1 ahora posee todo el grupo Cafe
+        int saldoAntesConstruir = j1.getSaldo();
+        int casasStockAntes = banco.getTableroJuego().getCasasRestantes();
+
+        bool construyoCasa = banco.ProcesarConstruirCasa(j1, med);
+        Verificar("7.11 ProcesarConstruirCasa con grupo completo",
+            construyoCasa && med.getCasasPuestas() == 1 && j1.getSaldo() == saldoAntesConstruir - med.getCostoCasa() && banco.getTableroJuego().getCasasRestantes() == casasStockAntes - 1,
+            $"=> Casas en Mediterraneo: {med.getCasasPuestas()}, Saldo J1: {j1.getSaldo()} (-{med.getCostoCasa()}), Stock Banco: {banco.getTableroJuego().getCasasRestantes()}");
+
+        // Prueba 7.12: Venta de casa y reembolso del 50%
+        int saldoAntesVender = j1.getSaldo();
+        bool vendioCasa = banco.ProcesarVenderCasa(j1, med);
+        Verificar("7.12 ProcesarVenderCasa y reembolso 50%",
+            vendioCasa && med.getCasasPuestas() == 0 && j1.getSaldo() == saldoAntesVender + (med.getCostoCasa() / 2),
+            $"=> Casas restantes: {med.getCasasPuestas()}, Saldo J1: {j1.getSaldo()} (+{med.getCostoCasa() / 2})");
+
+        // Prueba 7.13: Hipotecar y Deshipotecar propiedad
+        int saldoAntesHipoteca = j1.getSaldo();
+        int valorHipoteca = med.getPrecioDeCompra() / 2; // $60 / 2 = $30
+        bool hipotecadaOk = banco.ProcesarHipotecar(j1, med);
+        Verificar("7.13.1 ProcesarHipotecar sin casas",
+            hipotecadaOk && med.getEstaHipotecada() == true && j1.getSaldo() == saldoAntesHipoteca + valorHipoteca,
+            $"=> Hipotecada: {med.getEstaHipotecada()}, Saldo J1: {j1.getSaldo()} (+{valorHipoteca})");
+
+        int costoDeshipoteca = valorHipoteca + (med.getPrecioDeCompra() / 10); // $30 + $6 = $36
+        int saldoAntesDeshipoteca = j1.getSaldo();
+        bool deshipotecadaOk = banco.ProcesarDeshipotecar(j1, med);
+        Verificar("7.13.2 ProcesarDeshipotecar con saldo suficiente",
+            deshipotecadaOk && med.getEstaHipotecada() == false && j1.getSaldo() == saldoAntesDeshipoteca - costoDeshipoteca,
+            $"=> Deshipotecada: {!med.getEstaHipotecada()}, Saldo J1: {j1.getSaldo()} (-{costoDeshipoteca})");
+
+        // Prueba 7.14: Flujo de bancarrota inminente y resolucion
+        Jugador jDeudor = new Jugador(3, "Deudor", banco.getTableroJuego().getHead());
+        jDeudor.setSaldo(50);
+        jDeudor.marcarBancarrotaInminente(j1, 100);
+        Verificar("7.14.1 marcarBancarrotaInminente en Jugador",
+            jDeudor.getBancarrotaInminente() == true && jDeudor.getAcreedorPendiente() == j1 && jDeudor.getMontoPendiente() == 100,
+            $"=> Inminente: {jDeudor.getBancarrotaInminente()}, Acreedor: {jDeudor.getAcreedorPendiente()?.getNombre()}, Monto: ${jDeudor.getMontoPendiente()}");
+
+        // Intenta resolver sin saldo suficiente (falla)
+        bool resolvioSinSaldo = jDeudor.resolverBancarrota();
+        // Le damos saldo suficiente y resuelve con exito
+        jDeudor.setSaldo(150);
+        int saldoJ1AntesResolver = j1.getSaldo();
+        bool resolvioConSaldo = jDeudor.resolverBancarrota();
+        Verificar("7.14.2 resolverBancarrota tras reunir fondos",
+            resolvioSinSaldo == false && resolvioConSaldo == true && jDeudor.getBancarrotaInminente() == false && jDeudor.getSaldo() == 50 && j1.getSaldo() == saldoJ1AntesResolver + 100,
+            $"=> Resuelto: {resolvioConSaldo}, Saldo Deudor: ${jDeudor.getSaldo()}, Saldo Acreedor: ${j1.getSaldo()}");
+
+        // Prueba 7.15: Intercambio multiple de propiedades y dinero entre jugadores
+        Jugador jTraderA = new Jugador(10, "TraderA", banco.getTableroJuego().getHead());
+        jTraderA.setSaldo(1000);
+        Jugador jTraderB = new Jugador(20, "TraderB", banco.getTableroJuego().getHead());
+        jTraderB.setSaldo(1000);
+
+        Propiedad propA1 = new Propiedad("Calle A1", 101, 100, 10, "ColorA", 2);
+        Propiedad propA2 = new Propiedad("Calle A2", 102, 100, 10, "ColorA", 2);
+        Propiedad propB1 = new Propiedad("Avenida B1", 201, 200, 20, "ColorB", 2);
+
+        propA1.comprar(jTraderA);
+        propA2.comprar(jTraderA);
+        propB1.comprar(jTraderB);
+
+        // Preparamos las listas temporales para el trade
+        // TraderA ofrece: Calle A1 + Calle A2 + $50
+        // TraderB ofrece: Avenida B1 + $0
+        ListaPropiedades tradeA = new ListaPropiedades();
+        tradeA.agregarPropiedad(propA1);
+        tradeA.agregarPropiedad(propA2);
+
+        ListaPropiedades tradeB = new ListaPropiedades();
+        tradeB.agregarPropiedad(propB1);
+
+        int saldoA_antes = jTraderA.getSaldo();
+        int saldoB_antes = jTraderB.getSaldo();
+
+        bool tradeExitoso = banco.ProcesarIntercambio(jTraderA, tradeA, 50, jTraderB, tradeB, 0);
+
+        bool traspasoOk = propA1.getDuenio() == jTraderB &&
+                          propA2.getDuenio() == jTraderB &&
+                          propB1.getDuenio() == jTraderA &&
+                          jTraderA.getSaldo() == saldoA_antes - 50 &&
+                          jTraderB.getSaldo() == saldoB_antes + 50 &&
+                          jTraderA.getPropiedades().getSize() == 1 &&
+                          jTraderB.getPropiedades().getSize() == 2;
+
+        Verificar("7.15.1 ProcesarIntercambio multiple y dinero",
+            tradeExitoso && traspasoOk,
+            $"=> Trade Ok: {tradeExitoso}, Duenio A1: {propA1.getDuenio()?.getNombre()}, Duenio B1: {propB1.getDuenio()?.getNombre()}, Saldo A: ${jTraderA.getSaldo()}, Saldo B: ${jTraderB.getSaldo()}");
+
+        // 7.15.2 Rechazar intercambio si una propiedad tiene casas construidas
+        propB1.setCasasPuestas(1); // Ponemos casa ficticia
+        ListaPropiedades tradeInvalido = new ListaPropiedades();
+        tradeInvalido.agregarPropiedad(propB1);
+        bool tradeRechazadoPorCasas = banco.ProcesarIntercambio(jTraderA, tradeInvalido, 0, jTraderB, new ListaPropiedades(), 0);
+        Verificar("7.15.2 Rechazar intercambio si tiene casas construidas",
+            tradeRechazadoPorCasas == false,
+            $"=> Rechazado correctamente: {!tradeRechazadoPorCasas}");
+
+        Console.WriteLine();
+    }
 }
+
+
+

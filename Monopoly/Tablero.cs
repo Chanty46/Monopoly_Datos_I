@@ -107,38 +107,35 @@ class Tablero
     }
     }
 
+    // Solo mueve al jugador los pasos indicados por los dados.
+    // Retorna true si el jugador paso o cayo en Salida (ID 0) durante el movimiento.
+    // La reaccion a la casilla destino (aplicarCasilla, encarcelamiento) es responsabilidad del Banco.
     public bool moverJugadorPorDados(Jugador jugador, int pasosDados)
-    { 
-        bool res = true;
-        for (int i = 0; i < pasosDados; i++) //Ciclo for donde nos movemos de uno a uno hasta alcanzar la cantidad de pasos dados
-        {
-        // Avanzamos al siguiente nodo y actualizamos la referencia del jugador inmediatamente
-        NodoCasilla siguienteNodo = jugador.getNodoActual().getSiguiente(); //Es decir, el algoritmo primero reconoce cual es el siguiente paso a dar y lo da.
-        jugador.setNodoActual(siguienteNodo);
+    {
+        bool pasoPorSalida = false;
 
-        //Revisar si el paso/cayo en la principal
-        if (jugador.getNodoActual() == head)
-            {
-            res = jugador.getNodoActual().getCasilla().aplicarCasilla(jugador); //Del nodo obtendriamos la casilla de salida, y esta misma aplica el metodo al jugador
-            }
-        } 
-    // Al terminar todos los pasos, ejecutamos la acción de la casilla final
-    if (jugador.getNodoActual() != head)
+        for (int i = 0; i < pasosDados; i++)
         {
-        res = jugador.getNodoActual().getCasilla().aplicarCasilla(jugador); //Dado que en el algoritmo de mover por dados, al hacer el for se aplica nodo actual, basicamente aqui lo excluimos
-         // En caso de que el jugador se quede en la casilla, no que simplemente pase por ella
+            NodoCasilla siguienteNodo = jugador.getNodoActual().getSiguiente();
+            jugador.setNodoActual(siguienteNodo);
+
+            // Detectar si paso o cayo en Salida (head = ID 0)
+            if (jugador.getNodoActual() == head)
+            {
+                pasoPorSalida = true;
+            }
         }
 
-    // Revisar si el jugador fue encarcelado
-    fueEncarcelado(jugador); //Si fue encarcelado, enviar a la chorpa
-    return res;
+        return pasoPorSalida;
     }
 
+    // Teletransporta al jugador a la Carcel (ID 10) si esta marcado como encarcelado
+    // y aun no se encuentra fisicamente en ella. El Banco lo llama despues de aplicarCasilla.
     public void fueEncarcelado(Jugador jugador)
-    {                                                                                           //Es decir NO esta en la carcel:
-       if (jugador.getEstaEncarcelado() && jugador.getNodoActual().getCasilla().getIdCasilla() != 1)
+    {
+        if (jugador.getEstaEncarcelado() && jugador.getNodoActual().getCasilla().getIdCasilla() != 10)
         {
-            moverJugadorACasilla(jugador, 1); //suponiendo que el uno es la carcel
+            moverJugadorACasilla(jugador, 10);
         }
     }
 

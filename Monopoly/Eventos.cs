@@ -82,9 +82,9 @@ class ListaCircularCartas
         }
         else
         {
-            nuevoNodo.SetSiguiente(tail.GetSiguiente());
-            setTail(nuevoNodo);
-    
+            nuevoNodo.SetSiguiente(tail.GetSiguiente()); // nuevo nodo apunta al head ✓
+            tail.SetSiguiente(nuevoNodo);                // tail viejo conecta al nuevo ✓
+            setTail(nuevoNodo);                          // tail se mueve al nuevo ✓
         }
         size++;
     }

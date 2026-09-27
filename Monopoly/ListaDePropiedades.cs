@@ -32,8 +32,10 @@ class ListaPropiedades
     }
 
     //Getters 
-
-
+    public NodoPropiedad getHead() { return head; }
+    public int getSize() { return size; }
+    public void setHead(NodoPropiedad newHead) { head = newHead; }
+    public void setSize(int newSize) { size = newSize; }
     // Agregar una propiedad comprada al final de la lista
     public void agregarPropiedad(Propiedad nuevaPropiedad)
     {
@@ -127,32 +129,50 @@ public bool eliminarPropiedad(Propiedad propiedadEliminar) //El bool es para sab
     }
     
     public bool puedeMejorar(Propiedad propiedadAConstruir)
-{
-    string grupo = propiedadAConstruir.getGrupo();
-    int casasActuales = propiedadAConstruir.getCasasPuestas();
-
-    // Si ya tiene hotel o 5 casas, no se puede mejorar más
-    if (propiedadAConstruir.getTieneHotel() || casasActuales == 5) {return false; }
-
-    NodoPropiedad aux = head;
-    while (aux != null)
     {
-        Propiedad propiedadRevisada = aux.getPropiedad();
-
-        // Solo nos interesan las OTRAS propiedades del MISMO grupo
-        if (propiedadRevisada.getGrupo() == grupo && propiedadRevisada.getIdCasilla() != propiedadAConstruir.getIdCasilla())
+        // 1. Ferrocarriles y Servicios nunca pueden tener casas
+        if (propiedadAConstruir is Ferrocarril || propiedadAConstruir is CasillaServicio)
         {
-            // Regla: No podés subir esta propiedad si otra del mismo grupo tiene MENOS casas
-            if (propiedadRevisada.getCasasPuestas() < casasActuales)   // Osea por ejemplo si tengo P1 P2 y P3 
-            {                                                          // Si P1 tiene 1 casas, P2 tiene 1 y P3 tiene 0, no puedo subir a P1 a dos casas pues P3 no tendria 
-                return false;                                           // un crecimiento progresivo y entonces no cumple la regla
-            }
+            return false;
         }
-        aux = aux.getSiguiente();
-    } 
 
-    return true; // Cumple con la regla para todas las demás del grupo
-}
+        // 2. Regla fundamental de Monopoly: Debe tener TODAS las propiedades del grupo de color
+        if (!tieneGrupo(propiedadAConstruir))
+        {
+            return false;
+        }
+
+        string grupo = propiedadAConstruir.getGrupo();
+        int casasActuales = propiedadAConstruir.getCasasPuestas();
+
+        // Si ya tiene hotel o 5 casas, no se puede mejorar más
+        if (propiedadAConstruir.getTieneHotel() || casasActuales == 5) { return false; }
+
+        NodoPropiedad aux = head;
+        while (aux != null)
+        {
+            Propiedad propiedadRevisada = aux.getPropiedad();
+
+            // Solo nos interesan las OTRAS propiedades del MISMO grupo
+            if (propiedadRevisada.getGrupo() == grupo && propiedadRevisada.getIdCasilla() != propiedadAConstruir.getIdCasilla())
+            {
+                // Regla adicional: ninguna propiedad del mismo grupo puede estar hipotecada
+                if (propiedadRevisada.getEstaHipotecada())
+                {
+                    return false;
+                }
+
+                // Regla uniforme: No podés subir esta propiedad si otra del mismo grupo tiene MENOS casas
+                if (propiedadRevisada.getCasasPuestas() < casasActuales)
+                {
+                    return false;
+                }
+            }
+            aux = aux.getSiguiente();
+        } 
+
+        return true; // Cumple con la regla para todas las demás del grupo
+    }
 public bool puedeQuitarCasa(Propiedad propiedadAQuitar)
 {
     string grupo = propiedadAQuitar.getGrupo();
