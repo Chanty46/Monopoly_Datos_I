@@ -40,11 +40,12 @@ class Propiedad : Casilla
     private int precioDeCompra;
     private int alquiler;
     private int alquilerBase;
+    private int costoCasa;
     private string grupo; // El grupo de propiedades sera el conjunto de colores
     private int grupoSize;
     
     // Duenio
-    private Jugador duenio;
+    private Jugador? duenio;
 
     // Estado de la Propiedad
     private int casasPuestas;
@@ -63,14 +64,23 @@ class Propiedad : Casilla
         tieneHotel = false;
         estaHipotecada = false;
         duenio = null; //Aun no tiene duenio entonces no podemos solventar esto mismo
+        costoCasa = newGrupo switch
+        {
+            "Cafe" or "Marron" or "Brown" or "Celeste" or "AzulClaro" or "LightBlue" => 50,
+            "Rosa" or "Pink" or "Naranja" or "Orange" => 100,
+            "Rojo" or "Red" or "Amarillo" or "Yellow" => 150,
+            "Verde" or "Green" or "AzulOscuro" or "Azul" or "DarkBlue" => 200,
+            _ => newPrecio <= 120 ? 50 : (newPrecio <= 200 ? 100 : (newPrecio <= 280 ? 150 : 200))
+        };
     }
 
     // ================= GETTERS Y SETTERS =================
     public int getPrecioDeCompra() { return precioDeCompra; }
     public int getAlquiler() { return alquiler; }
+    public int getCostoCasa() { return costoCasa; }
     public string getGrupo() { return grupo; }
     public int getGrupoSize() {return grupoSize;}
-    public Jugador getDuenio() { return duenio; }
+    public Jugador? getDuenio() { return duenio; }
     public int getCasasPuestas() { return casasPuestas; }
     public bool getTieneHotel() { return tieneHotel; }
     public bool getEstaHipotecada() { return estaHipotecada; }
@@ -78,7 +88,8 @@ class Propiedad : Casilla
 
     public void setPrecioDeCompra(int newPrecio) { precioDeCompra = newPrecio; }
     public void setAlquiler(int newAlquiler) { alquiler = newAlquiler; }
-    public void setDuenio(Jugador newDuenio) { duenio = newDuenio; } //Esta nos sirve por si hay jugadores que quieren intercambiar
+    public void setCostoCasa(int newCosto) { costoCasa = newCosto; }
+    public void setDuenio(Jugador? newDuenio) { duenio = newDuenio; } //Esta nos sirve por si hay jugadores que quieren intercambiar
     public void setCasasPuestas(int newCasas) { casasPuestas = newCasas; }
     public void setTieneHotel(bool newTieneHotel) { tieneHotel = newTieneHotel; }
     public void setEstaHipotecada(bool newValue) { estaHipotecada = newValue; }
@@ -89,22 +100,24 @@ class Propiedad : Casilla
 
     public void hipotecar() //esto se podra hacer atraves de un panel de propiedades del jugador
     {
-        if(casasPuestas == 0 && !tieneHotel)
+        if (casasPuestas == 0 && !tieneHotel && !estaHipotecada && duenio != null)
         {
-        setEstaHipotecada(true); //Al hipotecarse, esta ya no puede cobrar renta
-        duenio.setSaldo(duenio.getSaldo() + (precioDeCompra/2)); //Le da la mitad del valor de la propiedad al duenio
-        } else {
-            return; //No se puede hipotecar una propiedad si no se tienen casas
+            setEstaHipotecada(true); //Al hipotecarse, esta ya no puede cobrar renta
+            duenio.setSaldo(duenio.getSaldo() + (precioDeCompra / 2)); //Le da la mitad del valor de la propiedad al duenio
         }
     }
 
     public void desHipotecar()
     {
-        if(duenio.getSaldo() > (precioDeCompra/2 + precioDeCompra/10)) //Todas las propiedades terminaran con un 0 al final para que no nos de error
+        if (estaHipotecada && duenio != null)
         {
-            duenio.setSaldo(duenio.getSaldo() - (precioDeCompra/2 + precioDeCompra/10));
-            setEstaHipotecada(false);
-        } 
+            int costo = (precioDeCompra / 2) + (precioDeCompra / 10);
+            if (duenio.getSaldo() >= costo)
+            {
+                duenio.setSaldo(duenio.getSaldo() - costo);
+                setEstaHipotecada(false);
+            }
+        }
     }
 
     public void comprar(Jugador comprador) // REQUIERE LA TARJETA ELECTRONICA

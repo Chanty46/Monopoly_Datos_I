@@ -5,9 +5,8 @@ namespace Monopoly;
 class NodoCasilla
 {
     private Casilla casilla;
-    private NodoCasilla siguiente;
-    private NodoCasilla anterior;
- 
+    private NodoCasilla? siguiente;
+    private NodoCasilla? anterior;
 
     public NodoCasilla(Casilla newCasilla)
     {
@@ -17,31 +16,31 @@ class NodoCasilla
     }
     //Getters 
     public Casilla getCasilla() { return casilla; }
-    public NodoCasilla getSiguiente() { return siguiente; }
-    public NodoCasilla getAnterior() { return anterior; }
+    public NodoCasilla getSiguiente() { return siguiente!; }
+    public NodoCasilla getAnterior() { return anterior!; }
 
     //Setters
-    public void setSiguiente(NodoCasilla newSiguiente) { siguiente = newSiguiente; }
-    public void setAnterior(NodoCasilla newAnterior) { anterior = newAnterior; }
+    public void setSiguiente(NodoCasilla? newSiguiente) { siguiente = newSiguiente; }
+    public void setAnterior(NodoCasilla? newAnterior) { anterior = newAnterior; }
 }
 
 class Tablero
 {
-    private NodoCasilla head; //Sera el inicio.
-    private NodoCasilla tail; 
+    private NodoCasilla? head; //Sera el inicio.
+    private NodoCasilla? tail; 
     
     private int casasRestantes; //Aumentan el valor de la renta
     private int hotelesRestantes; //Aumentan el valor de la renta
 
     //Getters 
-    public NodoCasilla getHead() { return head; }
-    public NodoCasilla getTail() { return tail; }
+    public NodoCasilla getHead() { return head!; }
+    public NodoCasilla getTail() { return tail!; }
     public int getCasasRestantes() { return casasRestantes; }
     public int getHotelesRestantes() { return hotelesRestantes; }
 
     //Setters 
-    public void setHead(NodoCasilla head) { this.head = head; }
-    public void setTail(NodoCasilla tail) { this.tail = tail; }
+    public void setHead(NodoCasilla? head) { this.head = head; }
+    public void setTail(NodoCasilla? tail) { this.tail = tail; }
     public void setCasasRestantes(int casas) { casasRestantes = casas; }
     public void setHotelesRestantes(int hoteles) { hotelesRestantes = hoteles; }
    
@@ -56,7 +55,7 @@ class Tablero
 
     public void agregarCasilla(Casilla newCasilla) // esta es mas que todo para poblar el talbero
     {
-       NodoCasilla nuevoNodo = new NodoCasilla(newCasilla);
+        NodoCasilla nuevoNodo = new NodoCasilla(newCasilla);
 
         if (head == null)
         {
@@ -65,7 +64,7 @@ class Tablero
             head.setSiguiente(head);
             head.setAnterior(head);
         } else {
-            tail.setSiguiente(nuevoNodo);
+            tail!.setSiguiente(nuevoNodo);
             nuevoNodo.setAnterior(tail);
             nuevoNodo.setSiguiente(head);
             head.setAnterior(nuevoNodo);
@@ -77,12 +76,13 @@ class Tablero
     // Luego seria buscarPorID que el id es la posicion en la que la casilla se encuentra
     // esto nos sirve para "teledirigir" a nuestros jugadores directo a una casilla sahur
 
-    public NodoCasilla buscarCasillaPorID(int id)
-    { if (head == null) {return null;}
+    public NodoCasilla? buscarCasillaPorID(int id)
+    { 
+        if (head == null) { return null; }
 
-    NodoCasilla actual = head; 
-    bool primeraVez = true;
-        while (actual != head || primeraVez) // basicamente ver esto es para recorrer todo el tablero Y encontrar una casilla, y hay que crear un bool para saber si ya pasamos por head
+        NodoCasilla actual = head; 
+        bool primeraVez = true;
+        while (actual != head || primeraVez)
         {
             primeraVez = false;
 
@@ -97,14 +97,14 @@ class Tablero
         return null;
     }
 
-   public void moverJugadorACasilla(Jugador jugador, int idDestino)
+    public void moverJugadorACasilla(Jugador jugador, int idDestino)
     {
-    NodoCasilla destino = buscarCasillaPorID(idDestino); //Como solo guardamos los ID, aqui es importante mover al jugador.
+        NodoCasilla? destino = buscarCasillaPorID(idDestino);
 
-    if (destino != null)
-    {
-        jugador.setNodoActual(destino);
-    }
+        if (destino != null)
+        {
+            jugador.setNodoActual(destino);
+        }
     }
 
     // Solo mueve al jugador los pasos indicados por los dados.
@@ -138,5 +138,4 @@ class Tablero
             moverJugadorACasilla(jugador, 10);
         }
     }
-
 }

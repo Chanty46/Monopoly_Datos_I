@@ -4,7 +4,7 @@ class NodoTurno
 {
     private Jugador jugador;
     private int dadosPasos;
-    private NodoTurno siguiente;
+    private NodoTurno? siguiente;
 
     public NodoTurno(Jugador jugador)
     {
@@ -16,16 +16,16 @@ class NodoTurno
     // ================= GETTERS Y SETTERS =================
     public Jugador getJugador() { return jugador; }
     public int getDadosPasos() { return dadosPasos; }
-    public NodoTurno getSiguiente() { return siguiente; }
+    public NodoTurno? getSiguiente() { return siguiente; }
 
     public void setDadosPasos(int pasos) { dadosPasos = pasos; }
-    public void setSiguiente(NodoTurno sig) { siguiente = sig; }
+    public void setSiguiente(NodoTurno? sig) { siguiente = sig; }
 }
 
 class ListaTurnos
 {
-    private NodoTurno tail;
-    private NodoTurno actual;
+    private NodoTurno? tail;
+    private NodoTurno? actual;
     private Random random;
     private int cantidadJugadores; // Guardamos cuántos jugadores activos quedan
 
@@ -65,12 +65,13 @@ class ListaTurnos
 
         // Buscamos el nodo anterior al que queremos eliminar
         NodoTurno aux = actual;
-        while (aux.getSiguiente().getJugador() != jugadorEliminar)
+        while (aux.getSiguiente() != null && aux.getSiguiente()!.getJugador() != jugadorEliminar)
         {
-            aux = aux.getSiguiente();
+            aux = aux.getSiguiente()!;
         }
 
-        NodoTurno aEliminar = aux.getSiguiente();
+        NodoTurno? aEliminar = aux.getSiguiente();
+        if (aEliminar == null) return;
 
         // Si el nodo a eliminar es el que tiene el turno actual, avanzamos 'actual'
         if (aEliminar == actual)
@@ -109,11 +110,14 @@ class ListaTurnos
 
     public Jugador getTurnoActual()
     {
-        return actual.getJugador();
+        return actual?.getJugador()!;
     }
 
     public void avanzarTurno()
     {
-        actual = actual.getSiguiente();
+        if (actual != null)
+        {
+            actual = actual.getSiguiente();
+        }
     }
 }

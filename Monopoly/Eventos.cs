@@ -25,8 +25,8 @@ class CartaEvento
     // Metodos
     public void aplicarEfecto(Jugador jugador)
     {
-        accion?.Invoke(jugador); // ? pregunta si el metodo accion es diferente de null, si sí lo es, entonces invoke llama a su metodo
-    }          // Invoke es necesario porque accion no es un método directamente, sino una referencia
+        accion?.Invoke(jugador);
+    }
 }
 
 class NodoCarta
@@ -40,11 +40,10 @@ class NodoCarta
         siguiente = null;
     }
 
- // ================= GETTERS Y SETTERS =================
+    // ================= GETTERS Y SETTERS =================
     public CartaEvento GetCarta() => carta;
-    public NodoCarta GetSiguiente() => siguiente;
-    public void SetSiguiente(NodoCarta siguiente) => this.siguiente = siguiente;
-
+    public NodoCarta? GetSiguiente() => siguiente;
+    public void SetSiguiente(NodoCarta? siguiente) => this.siguiente = siguiente;
 }
 
 class ListaCircularCartas
@@ -58,16 +57,14 @@ class ListaCircularCartas
         tail = null;
         actual = null;
         size = 0;
-
     }
 
     // ================= GETTERS Y SETTERS =================
-    public NodoCarta getTail() { return tail; }
-    public NodoCarta getActual() { return actual; }
+    public NodoCarta? getTail() { return tail; }
+    public NodoCarta? getActual() { return actual; }
     public int getSize() { return size; }
-    public void setTail(NodoCarta newTail) {tail = newTail;}
-    public void setActual(NodoCarta newActual) { actual = newActual; }
-
+    public void setTail(NodoCarta? newTail) { tail = newTail; }
+    public void setActual(NodoCarta? newActual) { actual = newActual; }
 
     //metodos
     public void agregarCarta(CartaEvento nodoCarta)
@@ -88,7 +85,8 @@ class ListaCircularCartas
         }
         size++;
     }
-    public CartaEvento tomarCarta()
+
+    public CartaEvento? tomarCarta()
     {
         if (actual == null)
         {
@@ -104,19 +102,20 @@ class ListaCircularCartas
     }
 }
 
-class MazoCartas{
-public static ListaCircularCartas CrearMazoCartas()
+class MazoCartas
+{
+    public static ListaCircularCartas CrearMazoCartas()
     {
         ListaCircularCartas mazo = new ListaCircularCartas();
 
-        // ganar dinero, se harán varias cambiando el motivo
+        // ganar dinero
         mazo.agregarCarta(new CartaEvento(
             1, 
             "Recibes $50 de regalo.", 
             j => j.setSaldo(j.getSaldo() + 50)
         ));
 
-        // pierde dinero, se harán varias cambiando el motivo
+        // pierde dinero
         mazo.agregarCarta(new CartaEvento(
             2, 
             "Paga la tasa escolar de $150.", 
@@ -129,29 +128,24 @@ public static ListaCircularCartas CrearMazoCartas()
             "Avanza hasta la Salida. Cobra $200.", 
             j => 
             {
-                //j.setNodoActual(); debe completarse cuando se defina la casilla inicial
                 j.setSaldo(j.getSaldo() + 200);
             }
         ));
-
 
         //retrocede 3 casillas
         mazo.agregarCarta(new CartaEvento(
             4, 
             "Retrocede 3 casillas.", 
-            j => j.setNodoActual(j.getNodoActual().getAnterior().getAnterior().getAnterior()) //de forma proviciona
+            j => j.setNodoActual(j.getNodoActual().getAnterior().getAnterior().getAnterior())
         ));
 
         //avanza 3 casillas
         mazo.agregarCarta(new CartaEvento(
             5, 
             "Avanza 3 casillas.", 
-            j => j.setNodoActual(j.getNodoActual().getSiguiente().getSiguiente().getSiguiente()) //de forma proviciona
+            j => j.setNodoActual(j.getNodoActual().getSiguiente().getSiguiente().getSiguiente())
         ));
 
-
-        //añadir enviar al inicio y enviar a la carcel cuando estén referenciadas
         return mazo;
     }
 }
-    

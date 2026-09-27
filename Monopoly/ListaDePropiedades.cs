@@ -6,7 +6,7 @@ namespace Monopoly;
 class NodoPropiedad
 {
     private Propiedad propiedad;
-    private NodoPropiedad siguiente;
+    private NodoPropiedad? siguiente;
 
     public NodoPropiedad(Propiedad propiedad)
     {
@@ -16,13 +16,13 @@ class NodoPropiedad
 
     // Getters y Setters
     public Propiedad getPropiedad() { return propiedad; }
-    public NodoPropiedad getSiguiente() { return siguiente; }
-    public void setSiguiente(NodoPropiedad siguiente) { this.siguiente = siguiente; }
+    public NodoPropiedad? getSiguiente() { return siguiente; }
+    public void setSiguiente(NodoPropiedad? siguiente) { this.siguiente = siguiente; }
 }
 
 class ListaPropiedades
 {
-    private NodoPropiedad head;
+    private NodoPropiedad? head;
     private int size;
 
     public ListaPropiedades()
@@ -32,9 +32,9 @@ class ListaPropiedades
     }
 
     //Getters 
-    public NodoPropiedad getHead() { return head; }
+    public NodoPropiedad? getHead() { return head; }
     public int getSize() { return size; }
-    public void setHead(NodoPropiedad newHead) { head = newHead; }
+    public void setHead(NodoPropiedad? newHead) { head = newHead; }
     public void setSize(int newSize) { size = newSize; }
     // Agregar una propiedad comprada al final de la lista
     public void agregarPropiedad(Propiedad nuevaPropiedad)
