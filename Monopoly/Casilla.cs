@@ -1,23 +1,16 @@
-using System.ComponentModel;
-using System.Reflection;
-using System.Runtime.CompilerServices;
-
 namespace Monopoly;
-// En este se contienen todas las casillas 
-
 
 class Casilla
 {
     private string nombre;
-    private int idCasilla; //Se le dara un ID para saber en que posicion del tablero esta
-    // Definir la ubicacion usando la libreria de UI 
+    private int idCasilla;
+
     public Casilla(string newNombre, int newID)
     {
         nombre = newNombre;
         idCasilla = newID;
     }
-   
-    // ================= GETTERS Y SETTERS =================
+
     public string getNombre() { return nombre; }
     public int getIdCasilla() { return idCasilla; }
 
@@ -28,21 +21,14 @@ class Casilla
     {
         // vacio
     }
-
 }
 
-
-class Propiedad : Casilla 
+class Propiedad : Casilla
 {
-    // Dinero y Grupo
     private int precioDeCompra;
     private int alquiler;
-    private string grupo; // El grupo de propiedades sera el conjunto de colores
-    
-    // Duenio
+    private string grupo;
     private Jugador duenio;
-
-    // Estado de la Propiedad
     private int casasPuestas;
     private bool tieneHotel;
     private bool estaHipotecada;
@@ -59,7 +45,6 @@ class Propiedad : Casilla
         duenio = null;
     }
 
-    // ================= GETTERS Y SETTERS =================
     public int getPrecioDeCompra() { return precioDeCompra; }
     public int getAlquiler() { return alquiler; }
     public string getGrupo() { return grupo; }
@@ -102,23 +87,12 @@ class Propiedad : Casilla
 
     public void comprar(Jugador comprador)
     {
-        // Caso 1, tiene duenio!
-        if (tieneDuenio())
-        {
-            return; //no se puede comprar
-        }
-        // Caso 2, no le alcanza la propiedad
-        if(comprador.getSaldo() < this.getPrecioDeCompra())
-        {
-            return;
-        }
+        if (tieneDuenio()) return;
+        if (comprador.getSaldo() < precioDeCompra) return;
 
-        //Caso 3, la compra!
-        this.setDuenio(comprador);
-        comprador.setSaldo(comprador.getSaldo() - this.getPrecioDeCompra());
-
-        //Luego agregarla a su lista de propiedades
-        comprador.getPropiedades().agregarPropiedad(this); //Agrega esta misma propiedad a la lista de propiedades   
+        duenio = comprador;
+        comprador.setSaldo(comprador.getSaldo() - precioDeCompra);
+        comprador.getPropiedades().agregarPropiedad(this);
     }
 
     // Aplicar Casilla se aplica AL final del turno
@@ -155,7 +129,6 @@ class Propiedad : Casilla
     }
 }
 
-
 class CasillaEvento : Casilla
 {
     public CasillaEvento(string nombre, int id) : base(nombre, id) { }
@@ -170,7 +143,7 @@ class CasillaEspecial : Casilla
 
     public virtual void aplicarCasilla(Jugador jugador)
     {
-        return; // Este de aqui cambiara
+        // Este método se redefine en cada caso especial.
     }
 }
 
@@ -186,12 +159,6 @@ class CasillaInicial : CasillaEspecial
 
 class CasillaCarcel : CasillaEspecial
 {
-      /**
-     * IDEA 
-     * Ok esta casilla funciona de dos maneras, como visita (pasa normal)
-     * Encarcelado, si el jugador esta encarcelado (turnosPerdidos > 0), simplemente le baja el turno, para esto mismo hay que revisar su posicion antes de empezar a moverse. 
-     * Preguntar si ID de la casilla es tal, entonces apliquemos la funcion de la casilla.  
-     */    
     public CasillaCarcel(string nombre, int id) : base(nombre, id) { }
 
     public override void aplicarCasilla(Jugador jugador)
@@ -203,12 +170,17 @@ class CasillaCarcel : CasillaEspecial
     }
 }
 
+Z<<<<<<< InterfazDev
 class CasillaParqueoLibre : CasillaEspecial {
+=======
+class CasillaParqueoLibre : CasillaEspecial
+{
+>>>>>>> main
     public CasillaParqueoLibre(string nombre, int id) : base(nombre, id) { }
 
     public override void aplicarCasilla(Jugador jugador)
     {
-        // No realiza ninguna acción
+        // No realiza ninguna acción.
     }
 }
 

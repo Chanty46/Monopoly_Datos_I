@@ -8,19 +8,19 @@
     "net10.0": []
   },
   "packageFolders": {
-    "C:\\Users\\sallo\\.nuget\\packages\\": {}
+    "/home/frigid/.nuget/packages/": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\sallo\\OneDrive\\Documents\\GitHub\\Monopoly_Datos_I\\Monopoly\\Monopoly.csproj",
+      "projectUniqueName": "/home/frigid/Documents/GitHub/Monopoly_Datos_I/Monopoly/Monopoly.csproj",
       "projectName": "Monopoly",
-      "projectPath": "C:\\Users\\sallo\\OneDrive\\Documents\\GitHub\\Monopoly_Datos_I\\Monopoly\\Monopoly.csproj",
-      "packagesPath": "C:\\Users\\sallo\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\sallo\\OneDrive\\Documents\\GitHub\\Monopoly_Datos_I\\Monopoly\\obj\\",
+      "projectPath": "/home/frigid/Documents/GitHub/Monopoly_Datos_I/Monopoly/Monopoly.csproj",
+      "packagesPath": "/home/frigid/.nuget/packages/",
+      "outputPath": "/home/frigid/Documents/GitHub/Monopoly_Datos_I/Monopoly/obj/",
       "projectStyle": "PackageReference",
       "configFilePaths": [
-        "C:\\Users\\sallo\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        "/home/frigid/.nuget/NuGet/NuGet.Config"
       ],
       "originalTargetFrameworks": [
         "net10.0"
@@ -45,7 +45,7 @@
         "auditLevel": "low",
         "auditMode": "all"
       },
-      "SdkAnalysisLevel": "10.0.400"
+      "SdkAnalysisLevel": "10.0.300"
     },
     "frameworks": {
       "net10.0": {
@@ -67,7 +67,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.400/PortableRuntimeIdentifierGraph.json",
+        "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/10.0.302/PortableRuntimeIdentifierGraph.json",
         "packagesToPrune": {
           "Microsoft.CSharp": "(,4.7.32767]",
           "Microsoft.VisualBasic": "(,10.4.32767]",
