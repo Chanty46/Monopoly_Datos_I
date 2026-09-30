@@ -1,10 +1,12 @@
-Ok avanzamos bastante
+PROYECTO MONOPOLY DISTRIBUIDO - COMPLETADO CON ÉXITO
 
-Falta 
--> Turnos
--> Tablero
--> Propiedades
-
-De Casillas
--> Definir la logica restante de Propiedades
--> Definir el polimorfismo con la accion que realiza la Propiedades
+Estado de tareas:
+-> Turnos: Completado (Lista Circular Simplemente Enlazada en Turnos.cs)
+-> Tablero: Completado (Lista Circular Doblemente Enlazada en Tablero.cs con 24 casillas balanceadas)
+-> Propiedades: Completado (Compra, cobro de alquiler, hipoteca y deshipoteca)
+-> Casillas: Polimorfismo unificado en Casilla.cs
+-> Transacciones: Estructura de datos propia en Transaccion.cs con persistencia en transacciones.txt
+-> Eventos: Mazo circular en Eventos.cs
+-> Capa Distribuida: Servidor y Cliente TCP robustos con autoridad centralizada
+-> Hardware: Controlador no bloqueante con fallback seguro para RFID y envío a display de 7 segmentos.
+-> Demostración: Prueba crítica automatizada ejecutable con 'dotnet run -- --test'.

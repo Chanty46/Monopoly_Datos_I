@@ -1,9 +1,12 @@
+using System;
+using System.Text;
+
 namespace Monopoly;
 
-class NodoPropiedad
+public class NodoPropiedad
 {
     private Propiedad propiedad;
-    private NodoPropiedad siguiente;
+    private NodoPropiedad? siguiente;
 
     public NodoPropiedad(Propiedad propiedad)
     {
@@ -11,14 +14,15 @@ class NodoPropiedad
         siguiente = null;
     }
 
-    public Propiedad getPropiedad() { return propiedad; }
-    public NodoPropiedad getSiguiente() { return siguiente; }
-    public void setSiguiente(NodoPropiedad siguiente) { this.siguiente = siguiente; }
+    public Propiedad getPropiedad() => propiedad;
+    public NodoPropiedad? getSiguiente() => siguiente;
+    public void setSiguiente(NodoPropiedad? siguiente) => this.siguiente = siguiente;
 }
 
-class ListaPropiedades
+// Estructura propia: Lista Simplemente Enlazada para la cartera de propiedades del jugador
+public class ListaPropiedades
 {
-    private NodoPropiedad head;
+    private NodoPropiedad? head;
     private int size;
 
     public ListaPropiedades()
@@ -27,12 +31,12 @@ class ListaPropiedades
         size = 0;
     }
 
-    public int getSize() { return size; }
-    public NodoPropiedad getHead() { return head; }
+    public int getSize() => size;
+    public NodoPropiedad? getHead() => head;
 
     public void agregarPropiedad(Propiedad nuevaPropiedad)
     {
-        NodoPropiedad nuevoNodo = new NodoPropiedad(nuevaPropiedad);
+        var nuevoNodo = new NodoPropiedad(nuevaPropiedad);
 
         if (head == null)
         {
@@ -43,17 +47,57 @@ class ListaPropiedades
             NodoPropiedad actual = head;
             while (actual.getSiguiente() != null)
             {
-                actual = actual.getSiguiente();
+                actual = actual.getSiguiente()!;
             }
             actual.setSiguiente(nuevoNodo);
         }
         size++;
     }
 
+    public bool removerPropiedad(int idCasilla)
+    {
+        if (head == null) return false;
+
+        if (head.getPropiedad().getIdCasilla() == idCasilla)
+        {
+            head = head.getSiguiente();
+            size--;
+            return true;
+        }
+
+        var actual = head;
+        while (actual.getSiguiente() != null)
+        {
+            if (actual.getSiguiente()!.getPropiedad().getIdCasilla() == idCasilla)
+            {
+                actual.setSiguiente(actual.getSiguiente()!.getSiguiente());
+                size--;
+                return true;
+            }
+            actual = actual.getSiguiente()!;
+        }
+
+        return false;
+    }
+
+    public Propiedad? buscarPorId(int idCasilla)
+    {
+        var actual = head;
+        while (actual != null)
+        {
+            if (actual.getPropiedad().getIdCasilla() == idCasilla)
+            {
+                return actual.getPropiedad();
+            }
+            actual = actual.getSiguiente();
+        }
+        return null;
+    }
+
     public int calcularValorTotal()
     {
         int total = 0;
-        NodoPropiedad actual = head;
+        var actual = head;
 
         while (actual != null)
         {
@@ -64,6 +108,19 @@ class ListaPropiedades
         return total;
     }
 
-    // De todas las propiedades, buscar si se tiene todas las de un grupo
-    // la logica seria buscar entre todas las listas y ver si se tiene un grupo completo
+    public string obtenerListadoTexto()
+    {
+        if (head == null) return "Ninguna propiedad.";
+
+        var sb = new StringBuilder();
+        var actual = head;
+        while (actual != null)
+        {
+            var p = actual.getPropiedad();
+            string estado = p.getEstaHipotecada() ? "[HIPOTECADA]" : $"Alquiler: ₡{p.getAlquiler()}";
+            sb.AppendLine($"  - [#{p.getIdCasilla()}] {p.getNombre()} (Grupo {p.getGrupo()}): Valor ₡{p.getPrecioDeCompra()} | {estado}");
+            actual = actual.getSiguiente();
+        }
+        return sb.ToString().TrimEnd();
+    }
 }

@@ -1,99 +1,143 @@
+using System;
+
 namespace Monopoly;
 
-class NodoDado
-{
-    private int valor;
-    private NodoDado siguiente;
-
-    public NodoDado(int valor)
-    {
-        this.valor = valor;
-        siguiente = null;
-    }
-
-    public int getValor() => valor;
-    public NodoDado getSiguiente() => siguiente;
-    public void setSiguiente(NodoDado siguiente) => this.siguiente = siguiente;
-}
-
-class ListaDados
-{
-    private NodoDado cabeza;
-    private NodoDado actual;
-
-    public ListaDados(params int[] valores)
-    {
-        cabeza = null;
-        actual = null;
-
-        foreach (var valor in valores)
-        {
-            agregar(valor);
-        }
-    }
-
-    public void agregar(int valor)
-    {
-        NodoDado nuevo = new NodoDado(valor);
-        if (cabeza == null)
-        {
-            cabeza = nuevo;
-            cabeza.setSiguiente(cabeza);
-            actual = cabeza;
-            return;
-        }
-
-        NodoDado ultimo = cabeza;
-        while (ultimo.getSiguiente() != cabeza)
-        {
-            ultimo = ultimo.getSiguiente();
-        }
-
-        ultimo.setSiguiente(nuevo);
-        nuevo.setSiguiente(cabeza);
-    }
-
-    public string SiguientePar()
-    {
-        if (actual == null)
-        {
-            return "DADOS:0,0";
-        }
-
-        int primero = actual.getValor();
-        actual = actual.getSiguiente();
-
-        int segundo = actual.getValor();
-        actual = actual.getSiguiente();
-
-        return $"DADOS:{primero},{segundo}";
-    }
-}
-
-class NodoTurno
+public class NodoTurno
 {
     private Jugador jugador;
-    private int DadosPasos; // El Nodo del Turno guarda cuantos pasos va a dar, cuestion de ordenar la logica en lo correspondiente
-    private NodoTurno siguiente; 
+    private int dadosPasos;
+    private NodoTurno? siguiente;
 
     public NodoTurno(Jugador jugador)
     {
         this.jugador = jugador;
-        DadosPasos = 0;
+        dadosPasos = 0;
         siguiente = null;
     }
 
     // Getters y Setters
     public Jugador getJugador() => jugador;
-    public int getDadosPasos() => DadosPasos;
-    public NodoTurno getSiguiente() => siguiente;
+    public int getDadosPasos() => dadosPasos;
+    public NodoTurno? getSiguiente() => siguiente;
 
-    public void setDadosPasos(int pasos) => DadosPasos = pasos;
-    public void setSiguiente(NodoTurno siguiente) => this.siguiente = siguiente;
+    public void setDadosPasos(int pasos) => dadosPasos = pasos;
+    public void setSiguiente(NodoTurno? siguiente) => this.siguiente = siguiente;
 }
 
-class ListaTurnos
+// Estructura propia: Lista Circular Simplemente Enlazada para la rotación de turnos
+public class ListaTurnos
 {
-    NodoTurno tail; 
-    
+    private NodoTurno? actual; // Apunta al jugador que tiene el turno
+    private NodoTurno? tail;   // Mantiene la estructura circular
+    private int totalJugadores;
+    private int numeroRonda;
+
+    public ListaTurnos()
+    {
+        actual = null;
+        tail = null;
+        totalJugadores = 0;
+        numeroRonda = 1;
+    }
+
+    public int GetTotalJugadores() => totalJugadores;
+    public int GetNumeroRonda() => numeroRonda;
+    public NodoTurno? GetActualNodo() => actual;
+
+    public void agregarJugador(Jugador jugador)
+    {
+        var nuevoNodo = new NodoTurno(jugador);
+        if (tail == null)
+        {
+            tail = nuevoNodo;
+            tail.setSiguiente(tail); // Se enlaza a sí mismo
+            actual = tail;
+        }
+        else
+        {
+            nuevoNodo.setSiguiente(tail.getSiguiente());
+            tail.setSiguiente(nuevoNodo);
+            tail = nuevoNodo;
+        }
+        totalJugadores++;
+    }
+
+    // Retorna qué jugador tiene el turno actual
+    public Jugador? getTurnoActual()
+    {
+        if (actual == null) return null;
+        return actual.getJugador();
+    }
+
+    // Avanza el turno al siguiente jugador activo en la lista circular
+    public Jugador? avanzarTurno()
+    {
+        if (actual == null || totalJugadores == 0) return null;
+
+        int intentos = 0;
+        do
+        {
+            // Si el siguiente nodo es el inicio de la lista (siguiente de tail), incrementa ronda
+            if (actual == tail)
+            {
+                numeroRonda++;
+            }
+
+            actual = actual.getSiguiente();
+            intentos++;
+
+            // Si el jugador está activo, este es su turno
+            if (actual!.getJugador().isActivo())
+            {
+                return actual.getJugador();
+            }
+
+        } while (intentos <= totalJugadores);
+
+        // Si nadie está activo, retornar el actual
+        return actual?.getJugador();
+    }
+
+    public int CantidadJugadoresActivos()
+    {
+        if (tail == null) return 0;
+        int activos = 0;
+        var temp = tail.getSiguiente();
+        for (int i = 0; i < totalJugadores; i++)
+        {
+            if (temp != null && temp.getJugador().isActivo()) activos++;
+            temp = temp?.getSiguiente();
+        }
+        return activos;
+    }
+
+    public Jugador? BuscarPorId(int id)
+    {
+        if (tail == null) return null;
+        var temp = tail.getSiguiente();
+        for (int i = 0; i < totalJugadores; i++)
+        {
+            if (temp != null && temp.getJugador().getID() == id)
+            {
+                return temp.getJugador();
+            }
+            temp = temp?.getSiguiente();
+        }
+        return null;
+    }
+
+    public Jugador? BuscarPorRfid(string uid)
+    {
+        if (string.IsNullOrWhiteSpace(uid) || tail == null) return null;
+        var temp = tail.getSiguiente();
+        for (int i = 0; i < totalJugadores; i++)
+        {
+            if (temp != null && string.Equals(temp.getJugador().getRfidUid(), uid, StringComparison.OrdinalIgnoreCase))
+            {
+                return temp.getJugador();
+            }
+            temp = temp?.getSiguiente();
+        }
+        return null;
+    }
 }

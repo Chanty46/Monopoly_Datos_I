@@ -1,13 +1,12 @@
-using System.Runtime.CompilerServices;
+using System;
 
 namespace Monopoly;
-// Aqui definimos lo que es el tablero, que tiene muchas cosas por hacer pero toca jiji
-class NodoCasilla
+
+public class NodoCasilla
 {
     private Casilla casilla;
-    private NodoCasilla siguiente;
-    private NodoCasilla anterior;
- 
+    private NodoCasilla? siguiente;
+    private NodoCasilla? anterior;
 
     public NodoCasilla(Casilla newCasilla)
     {
@@ -15,109 +14,180 @@ class NodoCasilla
         siguiente = null;
         anterior = null;
     }
-    //Getters 
-    public Casilla getCasilla() { return casilla; }
-    public NodoCasilla getSiguiente() { return siguiente; }
-    public NodoCasilla getAnterior() { return anterior; }
 
-    //Setters
-    public void setSiguiente(NodoCasilla newSiguiente) { siguiente = newSiguiente; }
-    public void setAnterior(NodoCasilla newAnterior) { anterior = newAnterior; }
+    // Getters 
+    public Casilla getCasilla() => casilla;
+    public NodoCasilla? getSiguiente() => siguiente;
+    public NodoCasilla? getAnterior() => anterior;
+
+    // Setters
+    public void setSiguiente(NodoCasilla? newSiguiente) => siguiente = newSiguiente;
+    public void setAnterior(NodoCasilla? newAnterior) => anterior = newAnterior;
 }
 
-class Tablero
+public class Tablero
 {
-    private NodoCasilla head; //Sera el inicio.
-    private NodoCasilla tail; 
-    private int casasRestantes; //Aumentan el valor de la renta
-    private int hotelesRestantes; //Aumentan el valor de la renta
+    private NodoCasilla? head; // Inicio del tablero circular
+    private NodoCasilla? tail;
+    private int casasRestantes;
+    private int hotelesRestantes;
+    private int totalCasillas;
+    public MazoEventos MazoEventos { get; }
 
-    //Getters 
-    public NodoCasilla getHead() { return head; }
-    public NodoCasilla getTail() { return tail; }
-    public int getCasasRestantes() { return casasRestantes; }
-    public int getHotelesRestantes() { return hotelesRestantes; }
+    public NodoCasilla? getHead() => head;
+    public NodoCasilla? getTail() => tail;
+    public int getCasasRestantes() => casasRestantes;
+    public int getHotelesRestantes() => hotelesRestantes;
+    public int getTotalCasillas() => totalCasillas;
 
-    //Setters 
-    public void setHead(NodoCasilla head) { this.head = head; }
-    public void setTail(NodoCasilla tail) { this.tail = tail; }
-    public void setCasasRestantes(int casas) { casasRestantes = casas; }
-    public void setHotelesRestantes(int hoteles) { hotelesRestantes = hoteles; }
-   
+    public void setHead(NodoCasilla? head) => this.head = head;
+    public void setTail(NodoCasilla? tail) => this.tail = tail;
+    public void setCasasRestantes(int casas) => casasRestantes = casas;
+    public void setHotelesRestantes(int hoteles) => hotelesRestantes = hoteles;
+
     public Tablero()
     {
         head = null;
         tail = null;
         casasRestantes = 32;
         hotelesRestantes = 12;
-        // De acuerdo a la IA, Monopoly incluye 32 casas y 12 hoteles
+        totalCasillas = 0;
+        MazoEventos = new MazoEventos();
     }
 
-    public void agregarCasilla(Casilla newCasilla) // esta es mas que todo para poblar el talbero
+    // Inserción en Lista Circular Doblemente Enlazada
+    public void agregarCasilla(Casilla newCasilla)
     {
-       NodoCasilla nuevoNodo = new NodoCasilla(newCasilla);
+        var nuevoNodo = new NodoCasilla(newCasilla);
 
         if (head == null)
         {
-            head = nuevoNodo; 
+            head = nuevoNodo;
             tail = nuevoNodo;
             head.setSiguiente(head);
             head.setAnterior(head);
-        } else {
-            tail.setSiguiente(nuevoNodo);
+        }
+        else
+        {
+            tail!.setSiguiente(nuevoNodo);
             nuevoNodo.setAnterior(tail);
             nuevoNodo.setSiguiente(head);
             head.setAnterior(nuevoNodo);
             tail = nuevoNodo;
         }
-    } 
+        totalCasillas++;
+    }
 
-    public NodoCasilla buscarCasillaPorID(int id)
-    { if (head == null) {return null;}
+    public NodoCasilla? buscarCasillaPorID(int id)
+    {
+        if (head == null) return null;
 
-    NodoCasilla actual = head; 
-    bool primeraVez = true;
-        while (actual != head || primeraVez) // basicamente ver esto es para recorrer todo el tablero Y encontrar una casilla, y hay que crear un bool para saber si ya pasamos por head
+        NodoCasilla actual = head;
+        do
         {
-            primeraVez = false;
-
             if (actual.getCasilla().getIdCasilla() == id)
             {
                 return actual;
             }
-
-            actual = actual.getSiguiente();
-        }
+            actual = actual.getSiguiente()!;
+        } while (actual != head);
 
         return null;
     }
 
-   public void moverJugadorACasilla(Jugador jugador, int idDestino)
+    public void moverJugadorACasilla(Jugador jugador, int idDestino)
     {
-    NodoCasilla destino = buscarCasillaPorID(idDestino);
-
-    if (destino != null)
-    {
-        jugador.setNodoActual(destino);
-    }
-    }
-
-    public void moverJugadorPorDados(Jugador jugador, int pasosDados)
-    { for (int i = 0; i < pasosDados; i++)
+        var destino = buscarCasillaPorID(idDestino);
+        if (destino != null)
         {
-        // Avanzamos al siguiente nodo y actualizamos la referencia del jugador inmediatamente
-        NodoCasilla siguienteNodo = jugador.getNodoActual().getSiguiente(); //Es decir, el algoritmo primero reconoce cual es el siguiente paso a dar y lo da.
-        jugador.setNodoActual(siguienteNodo);
+            jugador.setNodoActual(destino);
+        }
+    }
 
-        // Si en este paso cayó/pasó por el inicio (head), cobra los $200
-        if (jugador.getNodoActual() == getHead())
+    // Mueve al jugador paso a paso en la lista circular doble.
+    // Detecta si pasa por la salida (Casilla 0) para cobrar ₡200.
+    public Casilla moverJugadorPorDados(Jugador jugador, int pasos, out bool pasoPorSalida)
+    {
+        pasoPorSalida = false;
+        if (jugador.getNodoActual() == null)
+        {
+            jugador.setNodoActual(head);
+        }
+
+        var actual = jugador.getNodoActual()!;
+
+        for (int i = 0; i < pasos; i++)
+        {
+            actual = actual.getSiguiente()!;
+            // Si durante el trayecto pasa por la salida (Casilla 0), cobra el bono
+            if (actual.getCasilla().getIdCasilla() == 0 && i < pasos - 1)
             {
-            jugador.getNodoActual().getCasilla().aplicarCasilla(jugador); //Del nodo obtendriamos la casilla de salida, y esta misma aplica el metodo al jugador
+                pasoPorSalida = true;
+                jugador.agregarSaldo(200);
             }
         }
 
-    // Al terminar todos los pasos, ejecutamos la acción de la casilla final
-    jugador.getNodoActual().getCasilla().aplicarCasilla(jugador);
+        jugador.setNodoActual(actual);
+        return actual.getCasilla();
     }
 
+    // Inicializa el tablero oficial de 24 casillas (0 a 23)
+    public void InicializarTablero24()
+    {
+        // 0: Salida
+        agregarCasilla(new CasillaInicial("Salida (GO)", 0));
+        
+        // 1-2: Café
+        agregarCasilla(new Propiedad("Avenida Central", 1, 60, 10, "Café"));
+        agregarCasilla(new Propiedad("Avenida Segunda", 2, 60, 10, "Café"));
+        
+        // 3: Evento
+        agregarCasilla(new CasillaEvento("Suerte / Arca 1", 3));
+        
+        // 4-5: Celeste
+        agregarCasilla(new Propiedad("Paseo Colón", 4, 100, 15, "Celeste"));
+        agregarCasilla(new Propiedad("Calle Real", 5, 120, 20, "Celeste"));
+        
+        // 6: Cárcel
+        agregarCasilla(new CasillaCarcel("Cárcel", 6));
+        
+        // 7-8: Rosa
+        agregarCasilla(new Propiedad("Barrio Escalante", 7, 140, 25, "Rosa"));
+        agregarCasilla(new Propiedad("Barrio Amón", 8, 160, 30, "Rosa"));
+        
+        // 9: Evento
+        agregarCasilla(new CasillaEvento("Suerte / Arca 2", 9));
+        
+        // 10-11: Naranja
+        agregarCasilla(new Propiedad("Los Yoses", 10, 180, 35, "Naranja"));
+        agregarCasilla(new Propiedad("San Pedro", 11, 200, 40, "Naranja"));
+        
+        // 12: Parqueo Libre
+        agregarCasilla(new CasillaParqueoLibre("Parqueo Libre", 12));
+        
+        // 13-14: Rojo
+        agregarCasilla(new Propiedad("La Sabana", 13, 220, 45, "Rojo"));
+        agregarCasilla(new Propiedad("Rohrmoser", 14, 240, 50, "Rojo"));
+        
+        // 15: Evento
+        agregarCasilla(new CasillaEvento("Suerte / Arca 3", 15));
+        
+        // 16-17: Amarillo
+        agregarCasilla(new Propiedad("Curridabat", 16, 260, 55, "Amarillo"));
+        agregarCasilla(new Propiedad("Escazú", 17, 280, 60, "Amarillo"));
+        
+        // 18: Vaya a la Cárcel
+        agregarCasilla(new CasillaPolicia("Vaya a la Cárcel (Policía)", 18));
+        
+        // 19-20: Verde
+        agregarCasilla(new Propiedad("Santa Ana", 19, 300, 65, "Verde"));
+        agregarCasilla(new Propiedad("Heredia Centro", 20, 320, 70, "Verde"));
+        
+        // 21: Evento
+        agregarCasilla(new CasillaEvento("Suerte / Arca 4", 21));
+        
+        // 22-23: Azul Oscuro
+        agregarCasilla(new Propiedad("Pinares", 22, 350, 80, "Azul"));
+        agregarCasilla(new Propiedad("Montealegre", 23, 400, 100, "Azul"));
+    }
 }

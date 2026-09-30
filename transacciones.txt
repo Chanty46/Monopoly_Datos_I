@@ -1,0 +1,11 @@
+﻿ID,FECHA,TURNO,TIPO,ORIGEN,DESTINO,MONTO,DESCRIPCION
+1,2026-09-30 13:52:35,1,CONEXION,SISTEMA,Alfa,1500,"Jugador Alfa (ID 1) ingresó a la partida con ₡1500."
+2,2026-09-30 13:52:35,1,CONEXION,SISTEMA,Beta,1500,"Jugador Beta (ID 2) ingresó a la partida con ₡1500."
+1,2026-09-30 13:52:59,1,CONEXION,SISTEMA,Alfa,1500,"Jugador Alfa (ID 1) ingresó a la partida con ₡1500."
+2,2026-09-30 13:52:59,1,CONEXION,SISTEMA,Beta,1500,"Jugador Beta (ID 2) ingresó a la partida con ₡1500."
+3,2026-09-30 13:53:00,1,COMPRA,Alfa,BANCO,120,"Alfa compró Calle Real por ₡120."
+1,2026-09-30 13:54:51,1,CONEXION,SISTEMA,Alfa,1500,"Jugador Alfa (ID 1) ingresó a la partida con ₡1500."
+2,2026-09-30 13:54:51,1,CONEXION,SISTEMA,Beta,1500,"Jugador Beta (ID 2) ingresó a la partida con ₡1500."
+3,2026-09-30 13:54:51,1,EVENTO,BANCO,Alfa,0,"EVENTO_APLICADO|Lotería Nacional|¡Ganaste la lotería semanal! Cobra ₡100.|Saldo: ₡1600"
+1,2026-09-30 14:02:22,1,CONEXION,SISTEMA,Alfa,1500,"Jugador Alfa (ID 1) ingresó a la partida con ₡1500."
+2,2026-09-30 14:02:23,1,CONEXION,SISTEMA,Beta,1500,"Jugador Beta (ID 2) ingresó a la partida con ₡1500."

@@ -1,3 +1,4 @@
+using System;
 using MonopolyDistribuido;
 
 namespace Monopoly;
@@ -6,23 +7,22 @@ public static class PruebaRfid
 {
     public static void Ejecutar()
     {
-        Console.WriteLine("[RFID TEST] Iniciando prueba de lectura de tarjeta...");
+        Console.WriteLine("\n[RFID TEST] Iniciando prueba de lectura de tarjeta física/simulada...");
 
         var controlador = new ControladorHardware();
-        var respuesta = controlador.EnviarComando("READID");
+        Console.WriteLine($"[RFID TEST] Estado del hardware: {controlador.Estado} en puerto {controlador.PuertoActual}");
+        Console.WriteLine("[RFID TEST] Esperando tarjeta RFID durante 5 segundos...");
 
-        Console.WriteLine($"[RFID TEST] Respuesta: {respuesta}");
+        var uid = controlador.SolicitarRfid(5000);
 
-        var ok = !string.IsNullOrWhiteSpace(respuesta) &&
-                 respuesta.StartsWith("UID:", StringComparison.OrdinalIgnoreCase);
-
-        if (ok)
+        if (!string.IsNullOrWhiteSpace(uid))
         {
-            Console.WriteLine("[RFID TEST] OK: el valor devuelto tiene formato de UID válido.");
+            Console.WriteLine($"[RFID TEST] ÉXITO: Tarjeta detectada con UID: {uid}");
         }
         else
         {
-            Console.WriteLine("[RFID TEST] ERROR: la respuesta no tiene el formato esperado (UID:...).");
+            Console.WriteLine("[RFID TEST] AVISO: No se detectó ninguna tarjeta (o hardware no conectado).");
+            Console.WriteLine("[RFID TEST] En el juego oficial, esto activa el FALLBACK AUTOMÁTICO al jugador en turno sin bloquear.");
         }
     }
 }

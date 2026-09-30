@@ -162,6 +162,11 @@ def main():
             manejar_ledon()
         elif comando == "LEDOFF":
             manejar_ledoff()
+        elif comando == "TIRAR_DADOS" or comando == "DADOS":
+            import urandom
+            d1 = (urandom.getrandbits(16) % 6) + 1
+            d2 = (urandom.getrandbits(16) % 6) + 1
+            print(f"DADOS:{d1},{d2}")
         elif comando.startswith("DISPLAY"):
             partes = comando.split()
             if len(partes) == 2:
