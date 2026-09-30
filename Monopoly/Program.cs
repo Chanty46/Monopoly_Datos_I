@@ -20,6 +20,9 @@ class Program
                     var puerto = args.Length > 2 ? int.Parse(args[2]) : 5000;
                     Cliente.Conectar(ip, puerto);
                     return;
+                case "--rfid-test":
+                    PruebaRfid.Ejecutar();
+                    return;
             }
         }
 
