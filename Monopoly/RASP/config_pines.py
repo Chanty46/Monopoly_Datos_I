@@ -50,10 +50,27 @@ PIN_RFID_MOSI = 19              # GP19 (MOSI) - pin valido de SPI0 (GP3 danado, 
 PIN_RFID_MISO = 4               # GP4  (MISO) - pin valido de SPI0
 PIN_RFID_RST = 5                # GP5  (RST)
 
-# Display de 7 segmentos, 2 digitos: GP6 a GP14 (sin cambios, ya estaba cableado)
-PINES_SEGMENTOS = (6, 7, 8, 9, 10, 11, 12)  # segmentos a, b, c, d, e, f, g
-PIN_COMUN_DECENAS = 13          # GP13 - comun del digito de las decenas
-PIN_COMUN_UNIDADES = 14         # GP14 - comun del digito de las unidades
+# Display de 7 segmentos, 2 digitos.
+#
+# IMPORTANTE: el cableado fisico NO quedo en el orden logico a-g (se
+# identifico cada pin con multimetro y cada GPIO resulto ir a un segmento
+# distinto del esperado). Por eso se define como diccionario letra->GPIO
+# en vez de una lista en orden: asi el orden fisico del cableado no le
+# importa al resto del codigo, que arma la lista en orden a-g a partir de
+# este diccionario.
+PINES_POR_SEGMENTO = {
+    "a": 8,    # GP8
+    "b": 11,   # GP11
+    "c": 6,    # GP6
+    "d": 12,   # GP12
+    "e": 16,   # GP16
+    "f": 7,    # GP7
+    "g": 9,    # GP9
+}
+PIN_DP = 10             # GP10 - punto decimal del display; no se usa, queda siempre apagado
+PIN_COMUN_DECENAS = 13  # GP13 - comun del digito de las decenas
+PIN_COMUN_UNIDADES = 14 # GP14 - comun del digito de las unidades
+# GP15 quedo libre (no se uso al identificar el cableado real).
 
 # LED verde (CORRECCION: GP20, no GP21)
 PIN_LED = 20                    # GP20 - LED verde (via resistencia de 1k)
@@ -77,8 +94,8 @@ FRECUENCIA_REFRESCO_HZ = 200 # refresco del multiplexado del display
 
 # Seguridad: evita cablear dos funciones al mismo pin al editar la configuracion.
 _todos_los_pines = [PIN_LDR, PIN_LED, PIN_RFID_MISO, PIN_RFID_CS, PIN_RFID_SCK,
-                    PIN_RFID_MOSI, PIN_RFID_RST, PIN_COMUN_DECENAS,
-                    PIN_COMUN_UNIDADES] + list(PINES_SEGMENTOS)
+                    PIN_RFID_MOSI, PIN_RFID_RST, PIN_COMUN_DECENAS, PIN_COMUN_UNIDADES,
+                    PIN_DP] + list(PINES_POR_SEGMENTO.values())
 if len(set(_todos_los_pines)) != len(_todos_los_pines):
     raise ValueError("Pin repetido en la configuracion de pines")
 

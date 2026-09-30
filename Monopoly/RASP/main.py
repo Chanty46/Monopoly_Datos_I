@@ -29,9 +29,18 @@ led = Pin(PIN_LED, Pin.OUT)
 rfid = MFRC522(sck=PIN_RFID_SCK, mosi=PIN_RFID_MOSI, miso=PIN_RFID_MISO,
                rst=PIN_RFID_RST, cs=PIN_RFID_CS, spi_id=0)
 
-_pines_segmentos = [Pin(gp, Pin.OUT) for gp in PINES_SEGMENTOS]
+# La lista se arma en el orden logico a,b,c,d,e,f,g a partir del
+# diccionario PINES_POR_SEGMENTO (config_pines.py), que es el que de
+# verdad refleja el cableado fisico real -- asi no importa que el orden
+# de los GPIO en la placa no coincida con el orden logico de los segmentos.
+_ORDEN_SEGMENTOS = ("a", "b", "c", "d", "e", "f", "g")
+_pines_segmentos = [Pin(PINES_POR_SEGMENTO[letra], Pin.OUT) for letra in _ORDEN_SEGMENTOS]
 _pin_comun_decenas = Pin(PIN_COMUN_DECENAS, Pin.OUT)
 _pin_comun_unidades = Pin(PIN_COMUN_UNIDADES, Pin.OUT)
+
+# El punto decimal (DP) esta cableado pero no lo usa este proyecto: se deja
+# siempre apagado.
+_pin_dp = Pin(PIN_DP, Pin.OUT)
 
 
 # =============================================================================
@@ -54,6 +63,8 @@ _TABLA_SEGMENTOS = {
 # Nivel logico para "encendido" / "apagado", segun el tipo de display.
 _NIVEL_ENCENDIDO = 0 if DISPLAY_ANODO_COMUN else 1
 _NIVEL_APAGADO = 1 if DISPLAY_ANODO_COMUN else 0
+
+_pin_dp.value(_NIVEL_APAGADO)  # punto decimal siempre apagado
 
 _digito_decenas = 0
 _digito_unidades = 0
