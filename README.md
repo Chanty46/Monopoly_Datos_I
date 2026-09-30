@@ -90,10 +90,12 @@ Valida enlaces dobles del tablero, enlaces simples de turnos, mazo circular, eli
 dotnet run --project Monopoly/Monopoly.csproj -- --unit-tests
 ```
 
-### Iniciar el Servidor de Juego
+### Iniciar el Servidor de Juego (con Tablero Gráfico Web en vivo)
 ```bash
 dotnet run --project Monopoly/Monopoly.csproj -- --server 5000
 ```
+* Una vez iniciado el servidor, abra su navegador web en: **`http://localhost:8080`** (o `http://<IP_SERVIDOR>:8080`).
+* Podrá ver el **tablero de 24 casillas en tiempo real**, las fichas de los jugadores moviéndose, las compras de propiedades, el display de 7 segmentos de la Pico y el feed de transacciones.
 
 ### Iniciar Clientes (desde la misma máquina o computadoras distintas en red)
 ```bash

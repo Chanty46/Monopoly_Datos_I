@@ -11,6 +11,18 @@ namespace MonopolyDistribuido;
 
 public class Servidor
 {
+    private const int MAX_JUGADORES = 3;
+
+    // Tabla de UIDs RFID conocidos → ID de jugador (1-based)
+    // El ID de jugador se asigna inmediatamente al conectar; RFID solo enriquece
+    // el registro una vez detectado. La ausencia de RFID NUNCA bloquea al jugador.
+    private static readonly Dictionary<string, int> RFID_CONOCIDOS = new(StringComparer.OrdinalIgnoreCase)
+    {
+        { "4173AA6E", 1 },  // Ficha Roja
+        { "21775764", 2 },  // Ficha Azul
+        { "831785A6", 3 },  // Ficha Verde
+    };
+
     private readonly TcpListener _listener;
     private readonly ControladorHardware _hw;
     private readonly Tablero _tablero;
@@ -21,9 +33,17 @@ public class Servidor
     private bool _corriendo = true;
     private int _siguienteIdJugador = 1;
 
-    // Estado del turno activo
+    // Estado del turno activo y visualización
     private bool _dadosLanzadosEnTurnoActual = false;
     private Propiedad? _propiedadPendienteCompra = null;
+    private ServidorWeb? _servidorWeb;
+    private int _ultimoDado1 = 0;
+    private int _ultimoDado2 = 0;
+    private int _ultimoTotalDados = 0;
+    private int _ultimoValorDisplay = 0;
+
+    // Estado RFID por jugador: "esperando" | "identificado" | "no_disponible"
+    private readonly Dictionary<int, string> _rfidEstado = new();
 
     public Servidor(int puertoTcp, ControladorHardware hardware)
     {
@@ -46,6 +66,13 @@ public class Servidor
             Console.WriteLine($"[SERVIDOR] Estado de hardware Raspberry: {_hw.Estado} (Puerto: {_hw.PuertoActual})");
             Console.WriteLine("=================================================");
 
+            // Iniciar servidor web embebido para la interfaz gráfica en puerto 8080
+            _servidorWeb = new ServidorWeb(this, puerto: 8080);
+            _servidorWeb.Iniciar();
+
+            // Iniciar hilo de escaneo no bloqueante de RFID para jugadores en espera
+            IniciarEscaneoRfidSegundoPlano();
+
             new Thread(AceptarClientes) { IsBackground = true, Name = "AceptarClientesThread" }.Start();
 
             // Menú interactivo en la consola del Servidor
@@ -64,7 +91,7 @@ public class Servidor
                 else if (op == "2") Console.WriteLine(_historial.ObtenerHistorialTexto(15));
                 else if (op == "3") ProbarRfidConsola();
                 else if (op == "4") ProbarDisplayConsola();
-                else if (op == "5") { _corriendo = false; _listener.Stop(); _hw.Detener(); break; }
+                else if (op == "5") { _corriendo = false; _listener.Stop(); _servidorWeb.Detener(); _hw.Detener(); break; }
             }
         }
         catch (Exception ex)
@@ -175,15 +202,51 @@ public class Servidor
 
     private void ManejarConectar(TcpClient client, StreamWriter writer, ref Jugador? jugador, string[] partes)
     {
+        // Límite estricto: máximo MAX_JUGADORES (3) jugadores en la partida
+        if (_turnos.GetTotalJugadores() >= MAX_JUGADORES)
+        {
+            writer.WriteLine($"ERROR_LIMITE_JUGADORES|La partida ya tiene {MAX_JUGADORES} jugadores registrados. No se aceptan más conexiones.");
+            Console.WriteLine($"[SERVER] Conexión rechazada — ya hay {MAX_JUGADORES}/{MAX_JUGADORES} jugadores.");
+            return;
+        }
+
         string nombre = partes.Length > 1 && !string.IsNullOrWhiteSpace(partes[1]) ? partes[1].Trim() : $"Jugador_{_siguienteIdJugador}";
         
         var nodoInicio = _tablero.buscarCasillaPorID(0); // Salida
-        jugador = new Jugador(_siguienteIdJugador++, nombre, nodoInicio, 1500);
+        int idAsignado = _siguienteIdJugador++;
+        jugador = new Jugador(idAsignado, nombre, nodoInicio, 1500);
 
-        // Si tenemos asignación de tarjetas RFID conocidas, se puede asociar
+        // 1. Si el cliente envió un UID en el mensaje de conexión, usarlo
         if (partes.Length > 2 && !string.IsNullOrWhiteSpace(partes[2]))
         {
-            jugador.setRfidUid(partes[2].Trim());
+            string uid = partes[2].Trim().ToUpperInvariant();
+            jugador.setRfidUid(uid);
+            _rfidEstado[idAsignado] = "identificado";
+        }
+        else
+        {
+            // 2. Buscar si este ID de jugador tiene un UID RFID conocido pre-asignado
+            string? uidConocido = null;
+            foreach (var kvp in RFID_CONOCIDOS)
+            {
+                if (kvp.Value == idAsignado)
+                {
+                    uidConocido = kvp.Key;
+                    break;
+                }
+            }
+
+            if (uidConocido != null)
+            {
+                // Tiene UID conocido registrado — se actualizará cuando el RFID responda.
+                // El jugador puede jugar ahora mismo SIN necesitar el RFID.
+                jugador.setRfidUid(uidConocido);
+                _rfidEstado[idAsignado] = "esperando"; // RFID conocido, pendiente de escanear
+            }
+            else
+            {
+                _rfidEstado[idAsignado] = "no_disponible"; // Sin RFID asignado para este puesto
+            }
         }
 
         _turnos.agregarJugador(jugador);
@@ -198,10 +261,10 @@ public class Servidor
             $"Jugador {jugador.getNombre()} (ID {jugador.getID()}) ingresó a la partida con ₡1500."
         ));
 
-        Console.WriteLine($"[SERVER] Jugador registrado: {jugador.getNombre()} (ID: {jugador.getID()})");
+        Console.WriteLine($"[SERVER] Jugador registrado: {jugador.getNombre()} (ID: {jugador.getID()}) — RFID: {_rfidEstado[idAsignado]} — [{_turnos.GetTotalJugadores()}/{MAX_JUGADORES}]");
 
-        // Informar al cliente que se unió
-        writer.WriteLine($"BIENVENIDO|{jugador.getID()}|{jugador.getNombre()}|{jugador.getSaldo()}|{_tablero.getTotalCasillas()}|{_turnos.getTurnoActual()?.getID()}");
+        // Informar al cliente que se unió (incluye conteo X/3)
+        writer.WriteLine($"BIENVENIDO|{jugador.getID()}|{jugador.getNombre()}|{jugador.getSaldo()}|{_tablero.getTotalCasillas()}|{_turnos.getTurnoActual()?.getID()}|{_turnos.GetTotalJugadores()}/{MAX_JUGADORES}");
 
         // Actualizar el display con el jugador actual en turno
         if (_turnos.getTurnoActual() != null)
@@ -210,7 +273,7 @@ public class Servidor
         }
 
         // Difundir a todos los clientes
-        TransmitirATodos($"ACTUALIZACION|Nuevo jugador conectado: {jugador.getNombre()} (Saldo: ₡{jugador.getSaldo()}). Turno actual: {_turnos.getTurnoActual()?.getNombre()}");
+        TransmitirATodos($"ACTUALIZACION|Nuevo jugador conectado: {jugador.getNombre()} (Saldo: ₡{jugador.getSaldo()}). Jugadores: {_turnos.GetTotalJugadores()}/{MAX_JUGADORES}. Turno actual: {_turnos.getTurnoActual()?.getNombre()}");
     }
 
     private void ManejarTirarDados(StreamWriter writer, Jugador? jugador)
@@ -277,6 +340,10 @@ public class Servidor
         // Tirar dados
         var (d1, d2, total) = _hw.TirarDados();
         _dadosLanzadosEnTurnoActual = true;
+        _ultimoDado1 = d1;
+        _ultimoDado2 = d2;
+        _ultimoTotalDados = total;
+        _ultimoValorDisplay = total;
 
         // Mover jugador en el tablero circular
         var casillaDestino = _tablero.moverJugadorPorDados(jugador, total, out bool pasoPorSalida);
@@ -295,6 +362,7 @@ public class Servidor
         }
 
         // Mostrar en display la posición destino inicial
+        _ultimoValorDisplay = casillaDestino.getIdCasilla();
         _hw.MostrarEnDisplay(casillaDestino.getIdCasilla());
 
         // Resolver la casilla
@@ -303,7 +371,9 @@ public class Servidor
         // Si fue la policía, el jugador fue trasladado a la cárcel (ID 6)
         if (casillaDestino is CasillaPolicia)
         {
-            _hw.MostrarEnDisplay(jugador.getNodoActual()?.getCasilla().getIdCasilla() ?? 6);
+            int posCarcel = jugador.getNodoActual()?.getCasilla().getIdCasilla() ?? 6;
+            _ultimoValorDisplay = posCarcel;
+            _hw.MostrarEnDisplay(posCarcel);
         }
         else if (casillaDestino is CasillaInicial && !pasoPorSalida)
         {
@@ -367,18 +437,51 @@ public class Servidor
         TransmitirATodos($"ACTUALIZACION|{jugador.getNombre()} sacó {d1}+{d2}={total} y cayó en [{casillaDestino.getIdCasilla()}] {casillaDestino.getNombre()}. Saldo: ₡{jugador.getSaldo()}. Detalle: {resultadoCasilla}");
     }
 
-    private void ManejarComprarPropiedad(StreamWriter writer, Jugador? jugador)
+    private (bool ok, string mensaje) ManejarComprarPropiedad(StreamWriter? writer, Jugador? jugador)
     {
-        if (jugador == null) { writer.WriteLine("ERROR|No identificado."); return; }
-        if (_turnos.getTurnoActual()?.getID() != jugador.getID()) { writer.WriteLine("ERROR|No es su turno."); return; }
-        if (!_dadosLanzadosEnTurnoActual) { writer.WriteLine("ERROR|Debe lanzar los dados primero."); return; }
-        if (_propiedadPendienteCompra == null) { writer.WriteLine("ERROR|No hay ninguna propiedad disponible para compra en esta casilla."); return; }
+        if (jugador == null)
+        {
+            writer?.WriteLine("ERROR|COMPRA_RECHAZADA|Jugador no identificado.");
+            return (false, "Jugador no identificado.");
+        }
+        if (_turnos.getTurnoActual()?.getID() != jugador.getID())
+        {
+            writer?.WriteLine("ERROR|COMPRA_RECHAZADA|No es tu turno.");
+            return (false, "No es tu turno.");
+        }
+        if (!_dadosLanzadosEnTurnoActual)
+        {
+            writer?.WriteLine("ERROR|COMPRA_RECHAZADA|Debe lanzar los dados primero.");
+            return (false, "Debe lanzar los dados primero.");
+        }
+        if (_propiedadPendienteCompra == null)
+        {
+            writer?.WriteLine("ERROR|COMPRA_RECHAZADA|No hay ninguna propiedad disponible para compra en esta casilla.");
+            return (false, "No hay ninguna propiedad disponible para compra en esta casilla.");
+        }
 
         var prop = _propiedadPendienteCompra;
-        if (prop.tieneDuenio()) { writer.WriteLine("ERROR|La propiedad ya tiene dueño."); return; }
-        if (jugador.getSaldo() < prop.getPrecioDeCompra()) { writer.WriteLine("ERROR|Saldo insuficiente para comprar esta propiedad."); return; }
+        if (prop.tieneDuenio())
+        {
+            _propiedadPendienteCompra = null;
+            string errDuenio = $"La propiedad {prop.getNombre()} ya tiene dueño ({prop.getDuenio()?.getNombre()}).";
+            writer?.WriteLine($"ERROR|COMPRA_RECHAZADA|{errDuenio}");
+            Console.WriteLine($"[SERVER] Compra rechazada: {errDuenio}");
+            return (false, errDuenio);
+        }
+        if (jugador.getSaldo() < prop.getPrecioDeCompra())
+        {
+            string errSaldo = $"Saldo insuficiente. Requiere ₡{prop.getPrecioDeCompra()} pero posee ₡{jugador.getSaldo()}.";
+            writer?.WriteLine($"ERROR|COMPRA_RECHAZADA|{errSaldo}");
+            Console.WriteLine($"[SERVER] Compra rechazada para {jugador.getNombre()}: {errSaldo}");
+            return (false, errSaldo);
+        }
 
         // Procesar compra
+        Console.WriteLine($"[SERVER] Solicitud recibida: COMPRAR_PROPIEDAD para {jugador.getNombre()} (ID: {jugador.getID()})");
+        Console.WriteLine($"[SERVER] Propiedad: [{prop.getIdCasilla()}] {prop.getNombre()} (Precio: ₡{prop.getPrecioDeCompra()}, Alquiler: ₡{prop.getAlquiler()})");
+        Console.WriteLine($"[SERVER] Validando compra... Saldo actual ₡{jugador.getSaldo()} >= ₡{prop.getPrecioDeCompra()} OK.");
+
         bool exito = prop.comprar(jugador);
         if (exito)
         {
@@ -392,39 +495,52 @@ public class Servidor
                 $"{jugador.getNombre()} compró {prop.getNombre()} por ₡{prop.getPrecioDeCompra()}."
             ));
 
-            writer.WriteLine($"COMPRA_EXITOSA|{prop.getIdCasilla()}|{prop.getNombre()}|{prop.getPrecioDeCompra()}|{jugador.getSaldo()}");
+            Console.WriteLine($"[SERVER] Compra aprobada: {prop.getNombre()} ahora pertenece a {jugador.getNombre()}.");
+            Console.WriteLine($"[SERVER] Saldo actualizado: ₡{jugador.getSaldo()}. Transacción registrada.");
+
+            writer?.WriteLine($"COMPRA_EXITOSA|{prop.getIdCasilla()}|{prop.getNombre()}|{prop.getPrecioDeCompra()}|{jugador.getSaldo()}");
             TransmitirATodos($"SALDO_ACTUALIZADO|{jugador.getID()}|{jugador.getSaldo()}");
             TransmitirATodos($"ACTUALIZACION|{jugador.getNombre()} ha comprado [{prop.getIdCasilla()}] {prop.getNombre()} por ₡{prop.getPrecioDeCompra()}. Saldo restante: ₡{jugador.getSaldo()}.");
+            return (true, $"¡Compra exitosa! Adquiriste {prop.getNombre()} por ₡{prop.getPrecioDeCompra()}. Saldo: ₡{jugador.getSaldo()}.");
         }
         else
         {
-            writer.WriteLine("ERROR|No se pudo completar la compra.");
+            string errFallo = "No se pudo completar la operación de compra.";
+            writer?.WriteLine($"ERROR|COMPRA_RECHAZADA|{errFallo}");
+            return (false, errFallo);
         }
     }
 
-    private void ManejarNoComprar(StreamWriter writer, Jugador? jugador)
+    private (bool ok, string mensaje) ManejarNoComprar(StreamWriter? writer, Jugador? jugador)
     {
-        if (jugador == null) return;
-        if (_turnos.getTurnoActual()?.getID() != jugador.getID()) { writer.WriteLine("ERROR|No es su turno."); return; }
+        if (jugador == null) return (false, "No identificado.");
+        if (_turnos.getTurnoActual()?.getID() != jugador.getID())
+        {
+            writer?.WriteLine("ERROR|No es su turno.");
+            return (false, "No es su turno.");
+        }
 
         if (_propiedadPendienteCompra != null)
         {
             string nombreProp = _propiedadPendienteCompra.getNombre();
             _propiedadPendienteCompra = null;
-            writer.WriteLine("OK|Decidió no comprar.");
+            Console.WriteLine($"[SERVER] {jugador.getNombre()} decidió no comprar {nombreProp}.");
+            writer?.WriteLine($"OK|Decidió no comprar {nombreProp}.");
             TransmitirATodos($"ACTUALIZACION|{jugador.getNombre()} decidió no comprar {nombreProp}.");
+            return (true, $"Decidió no comprar {nombreProp}.");
         }
         else
         {
-            writer.WriteLine("OK|Sin compras pendientes.");
+            writer?.WriteLine("OK|Sin compras pendientes.");
+            return (true, "Sin compras pendientes.");
         }
     }
 
-    private void ManejarTerminarTurno(StreamWriter writer, Jugador? jugador)
+    private (bool ok, string mensaje) ManejarTerminarTurno(StreamWriter? writer, Jugador? jugador)
     {
-        if (jugador == null) { writer.WriteLine("ERROR|No identificado."); return; }
-        if (_turnos.getTurnoActual()?.getID() != jugador.getID()) { writer.WriteLine("ERROR|No es su turno."); return; }
-        if (!_dadosLanzadosEnTurnoActual) { writer.WriteLine("ERROR|Debe lanzar los dados antes de terminar su turno."); return; }
+        if (jugador == null) { writer?.WriteLine("ERROR|No identificado."); return (false, "No identificado."); }
+        if (_turnos.getTurnoActual()?.getID() != jugador.getID()) { writer?.WriteLine("ERROR|No es su turno."); return (false, "No es su turno."); }
+        if (!_dadosLanzadosEnTurnoActual) { writer?.WriteLine("ERROR|Debe lanzar los dados antes de terminar su turno."); return (false, "Debe lanzar los dados antes de terminar su turno."); }
 
         _dadosLanzadosEnTurnoActual = false;
         _propiedadPendienteCompra = null;
@@ -432,8 +548,8 @@ public class Servidor
         var siguienteJugador = _turnos.avanzarTurno();
         if (siguienteJugador == null)
         {
-            writer.WriteLine("ERROR|No hay más jugadores activos.");
-            return;
+            writer?.WriteLine("ERROR|No hay más jugadores activos.");
+            return (false, "No hay más jugadores activos.");
         }
 
         // Verificar si solo queda un jugador activo (ganador de la partida)
@@ -445,8 +561,9 @@ public class Servidor
         // Actualizar el 7 segmentos con el ID del nuevo jugador
         _hw.MostrarEnDisplay(siguienteJugador.getID());
 
-        writer.WriteLine("TURNO_TERMINADO|OK");
+        writer?.WriteLine("TURNO_TERMINADO|OK");
         TransmitirATodos($"NUEVO_TURNO|{siguienteJugador.getID()}|{siguienteJugador.getNombre()}|{siguienteJugador.getSaldo()}|{siguienteJugador.getNodoActual()?.getCasilla().getIdCasilla()}");
+        return (true, $"Turno terminado. Turno de {siguienteJugador.getNombre()} (ID: {siguienteJugador.getID()}).");
     }
 
     private void ManejarHipotecar(StreamWriter writer, Jugador? jugador, string[] partes)
@@ -524,16 +641,17 @@ public class Servidor
                     _dadosLanzadosEnTurnoActual = false;
                     _propiedadPendienteCompra = null;
                     var sig = _turnos.avanzarTurno();
-                    if (sig != null)
+                    if (sig != null && sig.getID() != jugador.getID())
                     {
                         TransmitirATodos($"ACTUALIZACION|{jugador.getNombre()} se desconectó durante su turno. Turno cedido a {sig.getNombre()}.");
                         _hw.MostrarEnDisplay(sig.getID());
                     }
                 }
-                else
-                {
-                    TransmitirATodos($"ACTUALIZACION|{jugador.getNombre()} se ha desconectado.");
-                }
+
+                _turnos.eliminarJugador(jugador.getID());
+                _rfidEstado.Remove(jugador.getID());
+
+                TransmitirATodos($"ACTUALIZACION|{jugador.getNombre()} se ha desconectado. Jugadores en partida: {_turnos.GetTotalJugadores()}/{MAX_JUGADORES}.");
             }
 
             _clientes.Remove(client);
@@ -607,7 +725,378 @@ public class Servidor
         Console.Write("Ingrese número a mostrar en 7 segmentos (00-99): ");
         if (int.TryParse(Console.ReadLine(), out int num))
         {
+            _ultimoValorDisplay = num;
             _hw.MostrarEnDisplay(num);
+        }
+    }
+
+    private void IniciarEscaneoRfidSegundoPlano()
+    {
+        new Thread(() =>
+        {
+            while (_corriendo)
+            {
+                Thread.Sleep(1500);
+                if (_hw.Estado != EstadoHardware.CONECTADA) continue;
+
+                // Solo insistir si hay algún jugador esperando RFID
+                bool hayEsperando = false;
+                lock (_lockJuego)
+                {
+                    foreach (var kvp in _rfidEstado)
+                    {
+                        if (kvp.Value == "esperando") { hayEsperando = true; break; }
+                    }
+                }
+
+                if (!hayEsperando) continue;
+
+                // Solicitar RFID de forma no bloqueante
+                string? uid = _hw.SolicitarRfid(1500);
+                if (!string.IsNullOrWhiteSpace(uid) && uid.Length >= 4)
+                {
+                    lock (_lockJuego)
+                    {
+                        Jugador? target = null;
+                        if (RFID_CONOCIDOS.TryGetValue(uid, out int idEsperado))
+                        {
+                            target = _turnos.BuscarPorId(idEsperado);
+                        }
+
+                        if (target == null)
+                        {
+                            // Asociar al primer jugador que esté esperando
+                            var n = _turnos.GetActualNodo();
+                            for (int i = 0; i < _turnos.GetTotalJugadores(); i++)
+                            {
+                                if (n != null && _rfidEstado.TryGetValue(n.getJugador().getID(), out var est) && est == "esperando")
+                                {
+                                    target = n.getJugador();
+                                    break;
+                                }
+                                n = n?.getSiguiente();
+                            }
+                        }
+
+                        if (target != null)
+                        {
+                            target.setRfidUid(uid);
+                            _rfidEstado[target.getID()] = "identificado";
+                            Console.WriteLine($"[SERVER] RFID detectado e identificado: {target.getNombre()} (ID: {target.getID()}) -> UID {uid}");
+                            TransmitirATodos($"ACTUALIZACION|✅ RFID DETECTADO: {target.getNombre()} (ID: {target.getID()}) identificado con UID {uid}.");
+                        }
+                    }
+                }
+            }
+        })
+        { IsBackground = true, Name = "EscaneoRfidSegundoPlano" }.Start();
+    }
+
+    public string ObtenerEstadoJson()
+    {
+        lock (_lockJuego)
+        {
+            var turnoActual = _turnos.getTurnoActual();
+
+            var listaJugadores = new List<object>();
+            if (_turnos.GetActualNodo() != null)
+            {
+                var temp = _turnos.GetActualNodo()!;
+                int total = _turnos.GetTotalJugadores();
+                for (int i = 0; i < total; i++)
+                {
+                    var j = temp.getJugador();
+                    _rfidEstado.TryGetValue(j.getID(), out string? rEstado);
+
+                    var propsJugador = new List<object>();
+                    var nProp = j.getPropiedades().getHead();
+                    while (nProp != null)
+                    {
+                        var p = nProp.getPropiedad();
+                        propsJugador.Add(new
+                        {
+                            id = p.getIdCasilla(),
+                            nombre = p.getNombre(),
+                            grupo = p.getGrupo(),
+                            precio = p.getPrecioDeCompra(),
+                            alquiler = p.getAlquiler(),
+                            hipotecada = p.getEstaHipotecada()
+                        });
+                        nProp = nProp.getSiguiente();
+                    }
+
+                    listaJugadores.Add(new
+                    {
+                        id = j.getID(),
+                        nombre = j.getNombre(),
+                        saldo = j.getSaldo(),
+                        casillaId = j.getNodoActual()?.getCasilla().getIdCasilla() ?? 0,
+                        casillaNombre = j.getNodoActual()?.getCasilla().getNombre() ?? "Salida",
+                        activo = j.isActivo(),
+                        encarcelado = j.isEncarcelado(),
+                        turnosPerdidos = j.getTurnosPerdidos(),
+                        rfidUid = j.getRfidUid() ?? "",
+                        rfidEstado = rEstado ?? "no_disponible",
+                        propiedades = propsJugador
+                    });
+                    temp = temp.getSiguiente()!;
+                }
+            }
+
+            var listaCasillas = new List<object>();
+            if (_tablero.getHead() != null)
+            {
+                var nodo = _tablero.getHead()!;
+                for (int i = 0; i < _tablero.getTotalCasillas(); i++)
+                {
+                    var c = nodo.getCasilla();
+                    string tipo = c is Propiedad ? "Propiedad" : (c is CasillaEvento ? "Evento" : "Especial");
+                    string grupo = "";
+                    int precio = 0;
+                    int alquiler = 0;
+                    int? duenioId = null;
+                    string duenioNombre = "";
+                    bool hipotecada = false;
+
+                    if (c is Propiedad prop)
+                    {
+                        grupo = prop.getGrupo();
+                        precio = prop.getPrecioDeCompra();
+                        alquiler = prop.getAlquiler();
+                        if (prop.tieneDuenio())
+                        {
+                            duenioId = prop.getDuenio()!.getID();
+                            duenioNombre = prop.getDuenio()!.getNombre();
+                        }
+                        hipotecada = prop.getEstaHipotecada();
+                    }
+
+                    listaCasillas.Add(new
+                    {
+                        id = c.getIdCasilla(),
+                        nombre = c.getNombre(),
+                        tipo,
+                        grupo,
+                        precio,
+                        alquiler,
+                        duenioId,
+                        duenioNombre,
+                        hipotecada
+                    });
+
+                    nodo = nodo.getSiguiente()!;
+                }
+            }
+
+            var ultimasTx = new List<string>();
+            var historialTabla = new List<object>();
+            var nodoTx = _historial.GetHead();
+            int saltar = Math.Max(0, _historial.GetSize() - 8);
+            int idxTx = 0;
+            while (nodoTx != null)
+            {
+                var tx = nodoTx.Transaccion;
+                if (idxTx >= saltar)
+                {
+                    ultimasTx.Add(tx.ToString());
+                }
+                historialTabla.Add(new
+                {
+                    ronda = tx.Turno,
+                    tipo = tx.Tipo,
+                    origen = tx.JugadorOrigen,
+                    destino = tx.JugadorDestino,
+                    monto = tx.Monto,
+                    detalle = tx.Descripcion,
+                    fecha = tx.Fecha.ToString("HH:mm:ss")
+                });
+                idxTx++;
+                nodoTx = nodoTx.Siguiente;
+            }
+
+            var estadoObj = new
+            {
+                ronda = _turnos.GetNumeroRonda(),
+                turnoActualId = turnoActual?.getID() ?? 0,
+                turnoActualNombre = turnoActual?.getNombre() ?? "Esperando jugadores...",
+                turnoActualSaldo = turnoActual?.getSaldo() ?? 0,
+                turnoActualCasilla = turnoActual?.getNodoActual()?.getCasilla().getIdCasilla() ?? 0,
+                dadosLanzados = _dadosLanzadosEnTurnoActual,
+                dadosUltimos = new { d1 = _ultimoDado1, d2 = _ultimoDado2, total = _ultimoTotalDados },
+                displayValor = _ultimoValorDisplay,
+                hardwareEstado = _hw.Estado.ToString(),
+                hardwarePuerto = _hw.PuertoActual,
+                jugadoresConectados = _turnos.GetTotalJugadores(),
+                maxJugadores = MAX_JUGADORES,
+                partidaLlena = _turnos.GetTotalJugadores() >= MAX_JUGADORES,
+                propiedadPendiente = _propiedadPendienteCompra != null ? new
+                {
+                    id = _propiedadPendienteCompra.getIdCasilla(),
+                    nombre = _propiedadPendienteCompra.getNombre(),
+                    precio = _propiedadPendienteCompra.getPrecioDeCompra(),
+                    alquiler = _propiedadPendienteCompra.getAlquiler()
+                } : null,
+                jugadores = listaJugadores,
+                casillas = listaCasillas,
+                transacciones = ultimasTx,
+                historial = historialTabla
+            };
+
+            return System.Text.Json.JsonSerializer.Serialize(estadoObj);
+        }
+    }
+
+    public (bool ok, string mensaje) EjecutarAccionWeb(string accion, int? idCasilla = null, int? idJugador = null, string? nombre = null)
+    {
+        lock (_lockJuego)
+        {
+            using var ms = new MemoryStream();
+            using var sw = new StreamWriter(ms, Encoding.UTF8) { AutoFlush = true };
+
+            string accionNorm = accion.Trim().ToUpperInvariant();
+
+            // Acciones que no requieren un jugador en turno
+            if (accionNorm == "CONECTAR")
+            {
+                if (_turnos.GetTotalJugadores() >= MAX_JUGADORES)
+                {
+                    return (false, $"Partida completa ({MAX_JUGADORES}/{MAX_JUGADORES}). No se admiten más jugadores.");
+                }
+
+                string nom = !string.IsNullOrWhiteSpace(nombre) ? nombre.Trim() : $"Jugador_{_siguienteIdJugador}";
+                var nodoInicio = _tablero.buscarCasillaPorID(0);
+                int idAsignado = _siguienteIdJugador++;
+                var nuevoJ = new Jugador(idAsignado, nom, nodoInicio, 1500);
+
+                // UID conocido preasignado si existe
+                foreach (var kvp in RFID_CONOCIDOS)
+                {
+                    if (kvp.Value == idAsignado)
+                    {
+                        nuevoJ.setRfidUid(kvp.Key);
+                        break;
+                    }
+                }
+
+                _rfidEstado[idAsignado] = "esperando";
+                _turnos.agregarJugador(nuevoJ);
+
+                _historial.Registrar(new Transaccion(
+                    _turnos.GetNumeroRonda(),
+                    "CONEXION",
+                    "SISTEMA",
+                    nuevoJ.getNombre(),
+                    1500,
+                    $"Jugador {nuevoJ.getNombre()} (ID {nuevoJ.getID()}) ingresó vía Web con ₡1500."
+                ));
+
+                if (_turnos.getTurnoActual() != null)
+                {
+                    _hw.MostrarEnDisplay(_turnos.getTurnoActual()!.getID());
+                }
+
+                TransmitirATodos($"ACTUALIZACION|Nuevo jugador conectado vía Web: {nuevoJ.getNombre()} (Saldo: ₡1500). Jugadores: {_turnos.GetTotalJugadores()}/{MAX_JUGADORES}. Turno actual: {_turnos.getTurnoActual()?.getNombre()}");
+                return (true, $"¡Bienvenido {nuevoJ.getNombre()}! Asignado ID {idAsignado}. Acerque su tarjeta RFID o elija 'Continuar sin RFID'.");
+            }
+
+            if (accionNorm == "CONTINUAR_SIN_RFID")
+            {
+                int targetId = idJugador ?? _turnos.getTurnoActual()?.getID() ?? 1;
+                var jTarget = _turnos.BuscarPorId(targetId);
+                if (jTarget == null) return (false, $"Jugador con ID {targetId} no encontrado.");
+
+                _rfidEstado[targetId] = "omitido";
+                Console.WriteLine($"[SERVER] {jTarget.getNombre()} (ID: {targetId}) continuará sin RFID (Modo ID).");
+                TransmitirATodos($"ACTUALIZACION|{jTarget.getNombre()} (ID: {targetId}) continuará jugando sin RFID (Modo ID).");
+                return (true, $"Modo sin RFID activado para {jTarget.getNombre()}. Puede jugar normalmente.");
+            }
+
+            if (accionNorm == "REINTENTAR_RFID")
+            {
+                int targetId = idJugador ?? _turnos.getTurnoActual()?.getID() ?? 1;
+                var jTarget = _turnos.BuscarPorId(targetId);
+                if (jTarget == null) return (false, $"Jugador con ID {targetId} no encontrado.");
+
+                Console.WriteLine($"[SERVER] Solicitando lectura RFID manual para {jTarget.getNombre()} (ID: {targetId})...");
+                string? uid = _hw.SolicitarRfid(3000);
+                if (!string.IsNullOrWhiteSpace(uid) && uid.Length >= 4)
+                {
+                    jTarget.setRfidUid(uid);
+                    _rfidEstado[targetId] = "identificado";
+                    Console.WriteLine($"[SERVER] RFID detectado exitosamente para {jTarget.getNombre()}: {uid}");
+                    TransmitirATodos($"ACTUALIZACION|✅ RFID DETECTADO: {jTarget.getNombre()} (ID: {targetId}) identificado con UID {uid}.");
+                    return (true, $"¡RFID Detectado! {jTarget.getNombre()} asociado a UID {uid}.");
+                }
+                else
+                {
+                    return (false, "No se detectó ninguna tarjeta RFID. Acerque la tarjeta al lector e intente de nuevo, o presione 'Continuar sin RFID'.");
+                }
+            }
+
+            var jugador = _turnos.getTurnoActual();
+            if (jugador == null) return (false, "No hay jugadores registrados en la partida. Conecte un jugador primero.");
+
+            switch (accionNorm)
+            {
+                case "TIRAR_DADOS":
+                    if (_dadosLanzadosEnTurnoActual) return (false, "Ya lanzó los dados en este turno.");
+                    ManejarTirarDados(sw, jugador);
+                    return (true, $"Dados lanzados: {_ultimoDado1} + {_ultimoDado2} = {_ultimoTotalDados}.");
+
+                case "COMPRAR_PROPIEDAD":
+                    return ManejarComprarPropiedad(sw, jugador);
+
+                case "NO_COMPRAR":
+                    return ManejarNoComprar(sw, jugador);
+
+                case "TERMINAR_TURNO":
+                    return ManejarTerminarTurno(sw, jugador);
+
+                case "HIPOTECAR":
+                    if (!idCasilla.HasValue) return (false, "Debe indicar el ID de la casilla a hipotecar.");
+                    var propH = jugador.getPropiedades().buscarPorId(idCasilla.Value);
+                    if (propH == null) return (false, "No posee esa propiedad.");
+                    if (propH.hipotecar())
+                    {
+                        _historial.Registrar(new Transaccion(
+                            _turnos.GetNumeroRonda(),
+                            "HIPOTECA",
+                            "BANCO",
+                            jugador.getNombre(),
+                            propH.getPrecioDeCompra() / 2,
+                            $"{jugador.getNombre()} hipotecó {propH.getNombre()} y recibió ₡{propH.getPrecioDeCompra() / 2}."
+                        ));
+                        TransmitirATodos($"SALDO_ACTUALIZADO|{jugador.getID()}|{jugador.getSaldo()}");
+                        TransmitirATodos($"ACTUALIZACION|{jugador.getNombre()} hipotecó {propH.getNombre()}. Nuevo saldo: ₡{jugador.getSaldo()}.");
+                        return (true, $"Propiedad {propH.getNombre()} hipotecada exitosamente. Recibió ₡{propH.getPrecioDeCompra() / 2}.");
+                    }
+                    return (false, "No se puede hipotecar esa propiedad (ya está hipotecada o tiene mejoras).");
+
+                case "DESHIPOTECAR":
+                    if (!idCasilla.HasValue) return (false, "Debe indicar el ID de la casilla a deshipotecar.");
+                    var propD = jugador.getPropiedades().buscarPorId(idCasilla.Value);
+                    if (propD == null) return (false, "No posee esa propiedad.");
+                    int costoD = (propD.getPrecioDeCompra() / 2) + (propD.getPrecioDeCompra() / 10);
+                    if (jugador.getSaldo() < costoD) return (false, $"Saldo insuficiente para deshipotecar (Requiere ₡{costoD}, posee ₡{jugador.getSaldo()}).");
+                    if (propD.desHipotecar())
+                    {
+                        _historial.Registrar(new Transaccion(
+                            _turnos.GetNumeroRonda(),
+                            "DESHIPOTECA",
+                            jugador.getNombre(),
+                            "BANCO",
+                            costoD,
+                            $"{jugador.getNombre()} canceló la hipoteca de {propD.getNombre()} por ₡{costoD}."
+                        ));
+                        TransmitirATodos($"SALDO_ACTUALIZADO|{jugador.getID()}|{jugador.getSaldo()}");
+                        TransmitirATodos($"ACTUALIZACION|{jugador.getNombre()} deshipotecó {propD.getNombre()}. Nuevo saldo: ₡{jugador.getSaldo()}.");
+                        return (true, $"Propiedad {propD.getNombre()} deshipotecada con éxito. Costo: ₡{costoD}.");
+                    }
+                    return (false, "No se pudo deshipotecar la propiedad.");
+
+                default:
+                    return (false, $"Acción '{accion}' desconocida.");
+            }
         }
     }
 }

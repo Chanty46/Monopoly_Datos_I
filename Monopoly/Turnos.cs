@@ -62,6 +62,36 @@ public class ListaTurnos
         totalJugadores++;
     }
 
+    public bool eliminarJugador(int id)
+    {
+        if (tail == null || totalJugadores == 0) return false;
+
+        if (totalJugadores == 1 && tail.getJugador().getID() == id)
+        {
+            tail = null;
+            actual = null;
+            totalJugadores = 0;
+            return true;
+        }
+
+        var prev = tail;
+        for (int i = 0; i < totalJugadores; i++)
+        {
+            var curr = prev.getSiguiente();
+            if (curr != null && curr.getJugador().getID() == id)
+            {
+                prev.setSiguiente(curr.getSiguiente());
+                if (curr == tail) tail = prev;
+                if (curr == actual) actual = prev.getSiguiente();
+                totalJugadores--;
+                return true;
+            }
+            prev = curr!;
+        }
+
+        return false;
+    }
+
     // Retorna qué jugador tiene el turno actual
     public Jugador? getTurnoActual()
     {

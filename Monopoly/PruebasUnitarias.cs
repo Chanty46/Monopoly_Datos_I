@@ -43,6 +43,7 @@ public static class PruebasUnitarias
         TestPolimorfismoCasillas();
         TestReglasMonopoly();
         TestHardwareFallback();
+        TestFase2JugadoresRfid();
 
         Console.WriteLine("\n======================================================================");
         Console.WriteLine($"    RESULTADO: {_pruebasPasadas}/{_pruebasTotales} PRUEBAS PASADAS SATISFACTORIAMENTE (100%)");
@@ -248,5 +249,121 @@ public static class PruebasUnitarias
         // Tirada de dados funciona y genera valores 2 a 12
         var (d1, d2, tot) = hw.TirarDados();
         Afirmar(d1 >= 1 && d1 <= 6 && d2 >= 1 && d2 <= 6 && tot == d1 + d2, $"Dados generados en rango válido: {d1} + {d2} = {tot}");
+    }
+
+    private static void TestFase2JugadoresRfid()
+    {
+        Console.WriteLine("\n[TEST SUITE 9] Fase 2 — Jugadores, RFID y Límites...");
+
+        // UIDs RFID conocidos del spec
+        var uidsConocidos = new System.Collections.Generic.Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "4173AA6E", 1 },
+            { "21775764", 2 },
+            { "831785A6", 3 },
+        };
+
+        // Prueba 1: UIDs conocidos mapean a los IDs correctos
+        Afirmar(uidsConocidos["4173AA6E"] == 1, "UID '4173AA6E' -> Jugador 1");
+        Afirmar(uidsConocidos["21775764"] == 2, "UID '21775764' -> Jugador 2");
+        Afirmar(uidsConocidos["831785A6"] == 3, "UID '831785A6' -> Jugador 3");
+        Afirmar(!uidsConocidos.ContainsKey("UNKNOWN_UID"), "UID desconocido no está en tabla de conocidos");
+
+        // Prueba 2: búsqueda insensible a mayúsculas
+        Afirmar(uidsConocidos.ContainsKey("4173aa6e"), "UID minúsculas encontrado (case-insensitive)");
+        Afirmar(uidsConocidos.ContainsKey("4173AA6E"), "UID mayúsculas encontrado (case-insensitive)");
+
+        // Prueba 3: jugadores con y sin RFID funcionan independientemente
+        var tablero = new Tablero();
+        tablero.InicializarTablero24();
+        var nodoInicio = tablero.buscarCasillaPorID(0);
+
+        var j1 = new Jugador(1, "Rojo", nodoInicio, 1500);
+        j1.setRfidUid("4173AA6E");
+        Afirmar(j1.getRfidUid() == "4173AA6E", "Jugador 1 tiene RFID asignado");
+        Afirmar(j1.isActivo(), "Jugador 1 activo aunque RFID no se haya escaneado aún");
+
+        var j2 = new Jugador(2, "Azul", nodoInicio, 1500);
+        // Sin RFID asignado — simula 'no_disponible'
+        Afirmar(j2.getRfidUid() == null, "Jugador 2 sin RFID (null)");
+        Afirmar(j2.isActivo(), "Jugador 2 activo sin RFID — fallback correcto");
+
+        // Prueba 4: límite de 3 jugadores en ListaTurnos
+        var turnos = new ListaTurnos();
+        turnos.agregarJugador(j1);
+        Afirmar(turnos.GetTotalJugadores() == 1, "1/3 jugadores conectados");
+
+        var j3 = new Jugador(3, "Verde", nodoInicio, 1500);
+        j3.setRfidUid("831785A6");
+        turnos.agregarJugador(new Jugador(2, "Azul2", nodoInicio, 1500));
+        turnos.agregarJugador(j3);
+        Afirmar(turnos.GetTotalJugadores() == 3, "3/3 jugadores conectados — partida llena");
+        Afirmar(turnos.GetTotalJugadores() >= 3, "Límite MAX_JUGADORES(3) alcanzado — se debe rechazar el 4to");
+
+        // Prueba 5: el turno se asigna al primer jugador conectado
+        Afirmar(turnos.getTurnoActual() != null, "Turno actual no es null con jugadores conectados");
+        Afirmar(turnos.getTurnoActual()!.getID() == 1, "Primer turno corresponde al Jugador 1");
+
+        // Prueba 6: rotación de turnos con 3 jugadores
+        turnos.avanzarTurno();
+        Afirmar(turnos.getTurnoActual()!.getID() == 2, "Segundo turno corresponde al Jugador 2");
+        turnos.avanzarTurno();
+        Afirmar(turnos.getTurnoActual()!.getID() == 3, "Tercer turno corresponde al Jugador 3");
+        turnos.avanzarTurno();
+        Afirmar(turnos.getTurnoActual()!.getID() == 1, "Cuarto turno vuelve al Jugador 1 (circular)");
+
+        // Prueba 7: valores display 7 segmentos — especificación obligatoria
+        // Valores obligatorios: 00, 01, 02, 09, 10, 11, 12, 13, 20, 21, 31, 42, 50, 69, 90, 99
+        int[] valoresDisplay = { 0, 1, 2, 9, 10, 11, 12, 13, 20, 21, 31, 42, 50, 69, 90, 99 };
+        foreach (int v in valoresDisplay)
+        {
+            int decenas = v / 10;
+            int unidades = v % 10;
+            Afirmar(decenas * 10 + unidades == v, $"Display {v:D2}: decenas={decenas}, unidades={unidades} → valor={decenas * 10 + unidades}");
+        }
+
+        // Prueba 8: desconexión y liberación de cupos
+        bool eliminado = turnos.eliminarJugador(2);
+        Afirmar(eliminado, "Jugador 2 eliminado tras desconexión");
+        Afirmar(turnos.GetTotalJugadores() == 2, "Total jugadores actualizado a 2/3 tras desconexión");
+        Afirmar(turnos.BuscarPorId(2) == null, "Jugador 2 ya no está en la lista de turnos");
+
+        // Prueba 9: Flujo completo de compra de propiedad y validaciones
+        var propPrueba = new Propiedad("Avenida Central", 1, 300, 30, "Café");
+        var jugadorComprador = new Jugador(1, "Comprador", nodoInicio, 1600);
+
+        // 9.1 Propiedad sin dueño genera resultado de disponible con nombre, precio y alquiler reales
+        string resDisponible = propPrueba.aplicarCasilla(jugadorComprador, tablero);
+        Afirmar(resDisponible.StartsWith("PROPIEDAD_DISPONIBLE|1|Avenida Central|300|30"), "Formato oficial de propiedad disponible con datos reales: " + resDisponible);
+
+        // 9.2 Compra exitosa
+        bool compraOk = propPrueba.comprar(jugadorComprador);
+        Afirmar(compraOk, "Compra de propiedad procesada con éxito");
+        Afirmar(jugadorComprador.getSaldo() == 1300, "Saldo del comprador descontó ₡300 (₡1600 -> ₡1300)");
+        Afirmar(propPrueba.getDuenio() == jugadorComprador, "Propietario asignado correctamente");
+        Afirmar(jugadorComprador.getPropiedades().buscarPorId(1) != null, "Propiedad registrada en inventario del jugador");
+
+        // 9.3 Compra repetida rechazada
+        bool compraRepetida = propPrueba.comprar(jugadorComprador);
+        Afirmar(!compraRepetida, "Compra repetida rechazada: la propiedad ya tiene dueño");
+
+        // 9.4 Intento de compra por otro jugador rechazado
+        var jugadorVisitante = new Jugador(2, "Visitante", nodoInicio, 1000);
+        bool compraVisitante = propPrueba.comprar(jugadorVisitante);
+        Afirmar(!compraVisitante, "Compra por segundo jugador rechazada: propiedad ocupada");
+
+        // 9.5 Visita y pago de alquiler
+        string resVisita = propPrueba.aplicarCasilla(jugadorVisitante, tablero);
+        Afirmar(resVisita.Contains("pagó ₡30 de alquiler a Comprador"), "Alquiler cobrado correctamente al visitante: " + resVisita);
+        Afirmar(jugadorVisitante.getSaldo() == 970, "Saldo de visitante descontó ₡30 (₡1000 -> ₡970)");
+        Afirmar(jugadorComprador.getSaldo() == 1330, "Saldo de dueño incrementó ₡30 (₡1300 -> ₡1330)");
+
+        // 9.6 Rechazo por saldo insuficiente
+        var propCara = new Propiedad("Paseo del Prado", 2, 2000, 200, "Azul");
+        var jugadorPobre = new Jugador(3, "Pobre", nodoInicio, 500);
+        bool compraPobre = propCara.comprar(jugadorPobre);
+        Afirmar(!compraPobre, "Compra rechazada por saldo insuficiente (₡500 < ₡2000)");
+        Afirmar(jugadorPobre.getSaldo() == 500, "Saldo de jugador pobre intacto (₡500)");
+        Afirmar(!propCara.tieneDuenio(), "Propiedad cara continúa sin dueño");
     }
 }

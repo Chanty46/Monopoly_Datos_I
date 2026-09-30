@@ -104,9 +104,14 @@ public class ControladorHardware
             // Enviar un LEDON y luego LEDOFF breve como confirmación visual
             try
             {
+                _puerto.DiscardInBuffer();
                 _puerto.WriteLine("LEDON");
                 Thread.Sleep(100);
+                try { _puerto.ReadLine(); } catch { }
                 _puerto.WriteLine("LEDOFF");
+                Thread.Sleep(100);
+                try { _puerto.ReadLine(); } catch { }
+                _puerto.DiscardInBuffer();
             }
             catch { }
         }
@@ -186,14 +191,20 @@ public class ControladorHardware
                     return null;
                 }
 
+                _puerto.DiscardInBuffer();
                 _puerto.ReadTimeout = timeoutMs;
                 _puerto.WriteLine("READID");
 
                 string respuesta = _puerto.ReadLine().Trim();
-                if (!string.IsNullOrWhiteSpace(respuesta) && respuesta != "TIMEOUT" && !respuesta.StartsWith("ERROR"))
+                if (!string.IsNullOrWhiteSpace(respuesta) && respuesta != "TIMEOUT" && !respuesta.StartsWith("ERROR") && respuesta != "OK")
                 {
-                    Console.WriteLine($"[HARDWARE] RFID leído exitosamente: {respuesta}");
-                    return respuesta;
+                    // Validar formato hexadecimal real (4 a 16 caracteres hexadecimales)
+                    if (Regex.IsMatch(respuesta, @"^[0-9A-Fa-f]{4,16}$"))
+                    {
+                        string uidNormalizado = respuesta.ToUpperInvariant();
+                        Console.WriteLine($"[HARDWARE] RFID leído exitosamente: {uidNormalizado}");
+                        return uidNormalizado;
+                    }
                 }
 
                 Console.WriteLine("[HARDWARE] RFID: Timeout o sin tarjeta detectada. Se aplicará fallback al jugador actual.");
@@ -241,6 +252,7 @@ public class ControladorHardware
                     return false;
                 }
 
+                _puerto.DiscardInBuffer();
                 _puerto.WriteLine(comando);
                 string resp = _puerto.ReadLine().Trim();
                 return resp == "OK";

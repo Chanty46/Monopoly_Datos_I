@@ -29,6 +29,7 @@ public class Program
 
                 case "--test":
                 case "--demo":
+                case "--integration-test":
                     PruebaIntegracion.EjecutarPruebaCompleta();
                     return;
 

@@ -80,13 +80,17 @@ def _dibujar_digito(valor, pin_comun_activo, pin_comun_inactivo):
 
 
 def _refrescar_display(temporizador):
-    # Se llama periodicamente (via Timer) para alternar rapido entre los dos
-    # digitos y que, a simple vista, parezcan estar encendidos al mismo tiempo.
+    # Correccion logica por software (NO hardware):
+    # Fisicamente el circuito tiene invertidas las posiciones: GP14 controla el digito
+    # izquierdo (decenas) y GP13 controla el digito derecho (unidades).
+    # Para que un numero NN se muestre con decenas a la izquierda y unidades a la derecha:
+    # - _digito_decenas se dibuja activando el comun izquierdo (_pin_comun_unidades).
+    # - _digito_unidades se dibuja activando el comun derecho (_pin_comun_decenas).
     global _fase_multiplexado
     if _fase_multiplexado == 0:
-        _dibujar_digito(_digito_decenas, _pin_comun_decenas, _pin_comun_unidades)
+        _dibujar_digito(_digito_decenas, _pin_comun_unidades, _pin_comun_decenas)
     else:
-        _dibujar_digito(_digito_unidades, _pin_comun_unidades, _pin_comun_decenas)
+        _dibujar_digito(_digito_unidades, _pin_comun_decenas, _pin_comun_unidades)
     _fase_multiplexado = 1 - _fase_multiplexado
 
 

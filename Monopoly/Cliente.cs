@@ -48,14 +48,21 @@ public class Cliente
                     {
                         var linea = reader.ReadLine();
                         if (linea == null) break;
-                        ProcesarMensajeServidor(linea);
+                        try
+                        {
+                            ProcesarMensajeServidor(linea);
+                        }
+                        catch (Exception exProc)
+                        {
+                            Console.WriteLine($"\n[CLIENTE AVISO] Error procesando evento ({exProc.Message})");
+                        }
                     }
                     catch
                     {
                         break;
                     }
                 }
-                Console.WriteLine("\n[CLIENTE] Conexión perdida con el servidor.");
+                Console.WriteLine("\n[CLIENTE] Conexión cerrada con el servidor.");
             })
             { IsBackground = true, Name = "ClienteReceptorThread" };
             hiloEscucha.Start();
@@ -106,15 +113,28 @@ public class Cliente
                 switch (op)
                 {
                     case "1":
+                        Console.WriteLine("[CLIENTE] Solicitud enviada: TIRAR_DADOS...");
                         writer.WriteLine("TIRAR_DADOS");
                         break;
                     case "2":
-                        writer.WriteLine("COMPRAR_PROPIEDAD");
+                        if (!_propiedadDisponibleParaComprar)
+                        {
+                            Console.WriteLine("⚠️ No hay ninguna propiedad disponible para comprar en esta casilla.");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[CLIENTE] Solicitud: COMPRAR_PROPIEDAD ({_infoPropiedad})");
+                            writer.WriteLine("COMPRAR_PROPIEDAD");
+                        }
                         break;
                     case "3":
+                        Console.WriteLine("[CLIENTE] Solicitud: NO_COMPRAR...");
                         writer.WriteLine("NO_COMPRAR");
+                        _propiedadDisponibleParaComprar = false;
+                        _infoPropiedad = "";
                         break;
                     case "4":
+                        Console.WriteLine("[CLIENTE] Solicitud: TERMINAR_TURNO...");
                         writer.WriteLine("TERMINAR_TURNO");
                         break;
                     case "5":
@@ -202,7 +222,6 @@ public class Cliente
                     int idCasilla = int.Parse(partes[5]);
                     string nomCasilla = partes[6];
                     int saldo = int.Parse(partes[7]);
-                    string detalle = partes.Length > 8 ? partes[8] : "";
 
                     if (idJugador == _miId)
                     {
@@ -211,16 +230,41 @@ public class Cliente
                         Console.WriteLine($"\n🎲 [TUS DADOS] Sacaste {d1} + {d2} = {tot}.");
                         Console.WriteLine($"📍 [POSICIÓN] Llegaste a [{idCasilla}] {nomCasilla}. Tu saldo oficial: ₡{_miSaldo}.");
                         
-                        if (detalle.StartsWith("PROPIEDAD_DISPONIBLE"))
+                        // Si la casilla destino es una propiedad disponible, partes contiene:
+                        // partes[8] = "PROPIEDAD_DISPONIBLE"
+                        // partes[9] = idProp
+                        // partes[10] = nombreProp
+                        // partes[11] = precio
+                        // partes[12] = alquiler
+                        if (partes.Length >= 13 && partes[8] == "PROPIEDAD_DISPONIBLE")
                         {
-                            var tokens = detalle.Split('|');
+                            int propId = int.Parse(partes[9]);
+                            string propNom = partes[10];
+                            int propPrecio = int.Parse(partes[11]);
+                            int propAlquiler = int.Parse(partes[12]);
+
                             _propiedadDisponibleParaComprar = true;
-                            _infoPropiedad = $"{tokens[2]} (Precio: ₡{tokens[3]}, Alquiler: ₡{tokens[4]})";
-                            Console.WriteLine($"🏠 [PROPIEDAD DISPONIBLE] Puedes comprar {_infoPropiedad} usando la Opción 2 o pasar con la Opción 3.");
+                            _infoPropiedad = $"{propNom} (Precio: ₡{propPrecio}, Alquiler: ₡{propAlquiler})";
+
+                            Console.WriteLine($"\n╔════════════════════════════════════════════════╗");
+                            Console.WriteLine($"║          🏠 ¡PROPIEDAD DISPONIBLE!             ║");
+                            Console.WriteLine($"╠════════════════════════════════════════════════╣");
+                            Console.WriteLine($"║  Nombre:     {propNom.PadRight(32)}  ║");
+                            Console.WriteLine($"║  Precio:     ₡{propPrecio.ToString().PadRight(31)} ║");
+                            Console.WriteLine($"║  Alquiler:   ₡{propAlquiler.ToString().PadRight(31)} ║");
+                            Console.WriteLine($"║  Tu Saldo:   ₡{_miSaldo.ToString().PadRight(31)} ║");
+                            Console.WriteLine($"╚════════════════════════════════════════════════╝");
+                            Console.WriteLine($"👉 Usa Opción 2 para COMPRAR o Opción 3 para NO COMPRAR.");
                         }
                         else
                         {
-                            Console.WriteLine($"ℹ️  [RESULTADO CASILLA] {detalle}");
+                            _propiedadDisponibleParaComprar = false;
+                            _infoPropiedad = "";
+                            string detalle = partes.Length > 8 ? string.Join(" ", System.Linq.Enumerable.Skip(partes, 8)) : "";
+                            if (!string.IsNullOrWhiteSpace(detalle))
+                            {
+                                Console.WriteLine($"ℹ️  [RESULTADO CASILLA] {detalle}");
+                            }
                         }
                     }
                 }
@@ -231,8 +275,17 @@ public class Cliente
                 {
                     _miSaldo = int.Parse(partes[4]);
                     _propiedadDisponibleParaComprar = false;
-                    Console.WriteLine($"\n🎉 [COMPRA EXITOSA] Has adquirido [{partes[1]}] {partes[2]} por ₡{partes[3]}. Nuevo saldo: ₡{_miSaldo}.");
+                    _infoPropiedad = "";
+                    Console.WriteLine($"\n🎉 [COMPRA EXITOSA] ¡Has adquirido [{partes[1]}] {partes[2]} por ₡{partes[3]}!");
+                    Console.WriteLine($"💰 Tu nuevo saldo oficial es: ₡{_miSaldo}.");
                 }
+                break;
+
+            case "TURNO_TERMINADO":
+                _dadosLanzadosEsteTurno = false;
+                _propiedadDisponibleParaComprar = false;
+                _infoPropiedad = "";
+                Console.WriteLine("\n✅ [TURNO FINALIZADO] Tu turno ha concluido exitosamente.");
                 break;
 
             case "SALDO_ACTUALIZADO":
@@ -269,7 +322,21 @@ public class Cliente
             case "ERROR":
                 if (partes.Length > 1)
                 {
-                    Console.WriteLine($"\n❌ [ERROR SERVIDOR] {partes[1]}");
+                    if (partes.Length > 2 && partes[1] == "COMPRA_RECHAZADA")
+                    {
+                        Console.WriteLine($"\n❌ [COMPRA RECHAZADA] {partes[2]}");
+                        _propiedadDisponibleParaComprar = false;
+                        _infoPropiedad = "";
+                    }
+                    else
+                    {
+                        Console.WriteLine($"\n❌ [ERROR SERVIDOR] {partes[1]}");
+                        if (partes[1].Contains("COMPRA_RECHAZADA") || partes[1].Contains("Saldo insuficiente") || partes[1].Contains("ya tiene dueño"))
+                        {
+                            _propiedadDisponibleParaComprar = false;
+                            _infoPropiedad = "";
+                        }
+                    }
                 }
                 break;
 
@@ -277,7 +344,12 @@ public class Cliente
             case "OK":
                 if (partes.Length > 1)
                 {
-                    Console.WriteLine($"\nℹ️  [SERVIDOR] {partes[1]}");
+                    Console.WriteLine($"\n✅ [SERVIDOR] {partes[1]}");
+                    if (partes[1].Contains("no comprar") || partes[1].Contains("Sin compras pendientes"))
+                    {
+                        _propiedadDisponibleParaComprar = false;
+                        _infoPropiedad = "";
+                    }
                 }
                 break;
 

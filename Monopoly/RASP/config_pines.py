@@ -68,8 +68,8 @@ PINES_POR_SEGMENTO = {
     "g": 9,    # GP9
 }
 PIN_DP = 10             # GP10 - punto decimal del display; no se usa, queda siempre apagado
-PIN_COMUN_DECENAS = 13  # GP13 - comun del digito de las decenas
-PIN_COMUN_UNIDADES = 14 # GP14 - comun del digito de las unidades
+PIN_COMUN_DECENAS = 13  # GP13 - pin comun asignado al hardware original (transistor Q1)
+PIN_COMUN_UNIDADES = 14 # GP14 - pin comun asignado al hardware original (transistor Q2)
 # GP15 quedo libre (no se uso al identificar el cableado real).
 
 # LED verde (CORRECCION: GP20, no GP21)
