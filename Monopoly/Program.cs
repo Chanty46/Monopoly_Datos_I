@@ -1,5 +1,4 @@
-﻿
-using MonopolyDistribuido;
+﻿using MonopolyDistribuido;
 
 namespace Monopoly;
 
@@ -12,13 +11,19 @@ class Program
             switch (args[0].ToLowerInvariant())
             {
                 case "--server":
-                    var servidor = new Servidor(5000, new ControladorHardware());
-                    servidor.Iniciar();
+                    IniciarServidor(args);
                     return;
                 case "--client":
-                    var ip = args.Length > 1 ? args[1] : "127.0.0.1";
-                    var puerto = args.Length > 2 ? int.Parse(args[2]) : 5000;
+                    string ip = args.Length > 1 ? args[1] : "127.0.0.1";
+                    int puerto = args.Length > 2 && int.TryParse(args[2], out int pc) ? pc : 5000;
                     Cliente.Conectar(ip, puerto);
+                    return;
+                case "--local":
+                case "--juego":
+                    JuegoLocalPrueba.IniciarJuego();
+                    return;
+                case "--test":
+                    PruebasUnitariasLogica.EjecutarPruebas();
                     return;
                 case "--rfid-test":
                     PruebaRfid.Ejecutar();
@@ -27,25 +32,60 @@ class Program
         }
 
         Console.WriteLine("Monopoly");
-        Console.WriteLine("1. Iniciar servidor");
+        Console.WriteLine("1. Iniciar servidor (banco)");
         Console.WriteLine("2. Iniciar cliente");
-        Console.Write("Seleccione una opción: ");
+        Console.WriteLine("3. Partida local de prueba");
+        Console.WriteLine("4. Pruebas unitarias");
+        Console.Write("Seleccione una opcion: ");
 
-        var opcion = Console.ReadLine();
-
-        if (opcion == "1")
+        switch (Console.ReadLine()?.Trim())
         {
-            var servidor = new Servidor(5000, new ControladorHardware());
-            servidor.Iniciar();
+            case "1": IniciarServidor(Array.Empty<string>()); break;
+            case "2":
+                Console.Write("IP del servidor [127.0.0.1]: ");
+                string? entrada = Console.ReadLine();
+                Cliente.Conectar(string.IsNullOrWhiteSpace(entrada) ? "127.0.0.1" : entrada.Trim(), 5000);
+                break;
+            case "3": JuegoLocalPrueba.IniciarJuego(); break;
+            case "4": PruebasUnitariasLogica.EjecutarPruebas(); break;
+            default: Console.WriteLine("Opcion invalida."); break;
         }
-        else if (opcion == "2")
+    }
+
+    // Uso: --server [--puerto 5000] [--jugadores 4] [--turnos 100] [--rfid] [--pico [COMx|/dev/ttyACM0]]
+    static void IniciarServidor(string[] args)
+    {
+        int puerto = ObtenerInt(args, "--puerto", 5000);
+        int jugadores = ObtenerInt(args, "--jugadores", 4);
+        int turnos = ObtenerInt(args, "--turnos", 100);
+        bool exigirRfid = Array.IndexOf(args, "--rfid") >= 0;
+
+        IDispositivoHardware hardware;
+        int iPico = Array.IndexOf(args, "--pico");
+        if (iPico >= 0)
         {
-            Cliente.Conectar("127.0.0.1", 5000);
+            string? nombrePuerto = iPico + 1 < args.Length && !args[iPico + 1].StartsWith("--") ? args[iPico + 1] : null;
+            try
+            {
+                hardware = HardwarePico.Abrir(nombrePuerto);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[HW] No se pudo abrir la Pico ({ex.Message}). Se usa hardware simulado.");
+                hardware = new ControladorHardware();
+            }
         }
         else
         {
-            Casilla c = new Casilla("Holaaa", 123);
-            Console.WriteLine($"Casilla creada correctamente: {c.getNombre()} ({c.getIdCasilla()})");
+            hardware = new ControladorHardware();
         }
+
+        new Servidor(puerto, hardware, jugadores, turnos, exigirRfid).Iniciar();
+    }
+
+    static int ObtenerInt(string[] args, string bandera, int defecto)
+    {
+        int i = Array.IndexOf(args, bandera);
+        return i >= 0 && i + 1 < args.Length && int.TryParse(args[i + 1], out int v) ? v : defecto;
     }
 }
