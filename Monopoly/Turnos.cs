@@ -94,45 +94,6 @@ class NodoTurno
 
 class ListaTurnos
 {
-    private NodoTurno actual; // Apunta al jugador que tiene el turno
-    private NodoTurno tail;   // Para mantener la estructura circular
-
-    public ListaTurnos()
-    {
-        actual = null;
-        tail = null;
-    }
-
-    public void agregarJugador(Jugador jugador)
-    {
-        NodoTurno nuevoNodo = new NodoTurno(jugador);
-        if (tail == null)
-        {
-            tail = nuevoNodo;
-            tail.setSiguiente(tail); // si la lsita está vacía, entonces el elemento se enlazara a sí mismo
-            actual = tail;
-        }
-        else
-        {
-            nuevoNodo.setSiguiente(tail.getSiguiente()); //introducimos el nuevo nodo entre el tail y el primer elemento
-            tail.setSiguiente(nuevoNodo);
-            tail = nuevoNodo; // actualiza la referencia tail
-        }
-    }
-
-    // retorna que jugador tiene el turno actual
-    public Jugador getTurnoActual()
-    {
-        if (actual == null) return null;
-        return actual.getJugador();
-    }
-
-    // avanza un turno en la lista circular
-    public void avanzarTurno()
-    {
-        if (actual != null)
-        {
-            actual = actual.getSiguiente();
-        }
-    }
+    NodoTurno tail; 
+    
 }

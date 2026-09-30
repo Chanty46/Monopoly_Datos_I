@@ -1,4 +1,3 @@
-
 using System.Runtime.CompilerServices;
 
 namespace Monopoly;
@@ -64,9 +63,7 @@ class Tablero
             tail = nuevoNodo;
             head.setSiguiente(head);
             head.setAnterior(head);
-        }
-        else
-        {
+        } else {
             tail.setSiguiente(nuevoNodo);
             nuevoNodo.setAnterior(tail);
             nuevoNodo.setSiguiente(head);
@@ -76,31 +73,28 @@ class Tablero
     } 
 
     public NodoCasilla buscarCasillaPorID(int id)
-    {
-
-    if (head == null) {return null;}
+    { if (head == null) {return null;}
 
     NodoCasilla actual = head; 
     bool primeraVez = true;
-
-    while (actual != head || primeraVez) // basicamente ver esto es para recorrer todo el tablero Y encontrar una casilla, y hay que crear un bool para saber si ya pasamos por head
-    {
-        primeraVez = false;
-
-        if (actual.getCasilla().getIdCasilla() == id)
+        while (actual != head || primeraVez) // basicamente ver esto es para recorrer todo el tablero Y encontrar una casilla, y hay que crear un bool para saber si ya pasamos por head
         {
-            return actual;
+            primeraVez = false;
+
+            if (actual.getCasilla().getIdCasilla() == id)
+            {
+                return actual;
+            }
+
+            actual = actual.getSiguiente();
         }
 
-        actual = actual.getSiguiente();
+        return null;
     }
 
-    return null;
-    }
-
-   public void moverJugadorACasilla(Jugador jugador, Tablero tablero, int idDestino)
+   public void moverJugadorACasilla(Jugador jugador, int idDestino)
     {
-    NodoCasilla destino = this.buscarCasillaPorID(idDestino);
+    NodoCasilla destino = buscarCasillaPorID(idDestino);
 
     if (destino != null)
     {
@@ -108,11 +102,22 @@ class Tablero
     }
     }
 
-    public void moverJugadorPorDados(Jugador jugador)
-    {
-        // Hay que hacer los turnos, ya que en turnos se dara las funciones de tirar dados (provisionalmente hechas con random)
-        // Entonces tiene que moverse de una en una y simplemente revisar si llega a la casilla de llegada, pagar 200, luego
-        // Al quedarse sin pasos, ubicar al jugador y ejecutar lo que tenga la casilla 
-        // Por ejemplo, dar la opcion de comprar. 
+    public void moverJugadorPorDados(Jugador jugador, int pasosDados)
+    { for (int i = 0; i < pasosDados; i++)
+        {
+        // Avanzamos al siguiente nodo y actualizamos la referencia del jugador inmediatamente
+        NodoCasilla siguienteNodo = jugador.getNodoActual().getSiguiente(); //Es decir, el algoritmo primero reconoce cual es el siguiente paso a dar y lo da.
+        jugador.setNodoActual(siguienteNodo);
+
+        // Si en este paso cayó/pasó por el inicio (head), cobra los $200
+        if (jugador.getNodoActual() == getHead())
+            {
+            jugador.getNodoActual().getCasilla().aplicarCasilla(jugador); //Del nodo obtendriamos la casilla de salida, y esta misma aplica el metodo al jugador
+            }
+        }
+
+    // Al terminar todos los pasos, ejecutamos la acción de la casilla final
+    jugador.getNodoActual().getCasilla().aplicarCasilla(jugador);
     }
+
 }
