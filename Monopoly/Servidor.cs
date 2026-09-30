@@ -343,7 +343,7 @@ public class Servidor
         _ultimoDado1 = d1;
         _ultimoDado2 = d2;
         _ultimoTotalDados = total;
-        _ultimoValorDisplay = total;
+        _ultimoValorDisplay = (d1 * 10) + d2; // El display oficial refleja ambos dados (ej: 3 y 4 -> 34)
 
         // Mover jugador en el tablero circular
         var casillaDestino = _tablero.moverJugadorPorDados(jugador, total, out bool pasoPorSalida);
@@ -361,19 +361,13 @@ public class Servidor
             TransmitirATodos($"SALDO_ACTUALIZADO|{jugador.getID()}|{jugador.getSaldo()}");
         }
 
-        // Mostrar en display la posición destino inicial
-        _ultimoValorDisplay = casillaDestino.getIdCasilla();
-        _hw.MostrarEnDisplay(casillaDestino.getIdCasilla());
-
-        // Resolver la casilla
+        // Resolver la casilla (el display de 7 segmentos mantiene visible la tirada de los dados para los jugadores)
         string resultadoCasilla = casillaDestino.aplicarCasilla(jugador, _tablero);
 
         // Si fue la policía, el jugador fue trasladado a la cárcel (ID 6)
         if (casillaDestino is CasillaPolicia)
         {
-            int posCarcel = jugador.getNodoActual()?.getCasilla().getIdCasilla() ?? 6;
-            _ultimoValorDisplay = posCarcel;
-            _hw.MostrarEnDisplay(posCarcel);
+            // El jugador fue reubicado a la cárcel por la regla del juego; el dado electrónico permanece en el 7 segmentos
         }
         else if (casillaDestino is CasillaInicial && !pasoPorSalida)
         {
@@ -736,13 +730,14 @@ public class Servidor
         {
             while (_corriendo)
             {
-                Thread.Sleep(1500);
+                Thread.Sleep(3000);
                 if (_hw.Estado != EstadoHardware.CONECTADA) continue;
 
                 // Solo insistir si hay algún jugador esperando RFID
                 bool hayEsperando = false;
                 lock (_lockJuego)
                 {
+                    if (_dadosLanzadosEnTurnoActual) continue;
                     foreach (var kvp in _rfidEstado)
                     {
                         if (kvp.Value == "esperando") { hayEsperando = true; break; }
@@ -1036,10 +1031,25 @@ public class Servidor
             var jugador = _turnos.getTurnoActual();
             if (jugador == null) return (false, "No hay jugadores registrados en la partida. Conecte un jugador primero.");
 
+            // Validación de turno si la GUI especifica el jugador que invoca la acción
+            if (idJugador.HasValue && idJugador.Value != jugador.getID())
+            {
+                var jSolicitante = _turnos.BuscarPorId(idJugador.Value);
+                string nomSolicitante = jSolicitante?.getNombre() ?? $"Jugador {idJugador.Value}";
+                return (false, $"Lanzamiento fuera de turno: Es el turno de {jugador.getNombre()} (ID {jugador.getID()}), no de {nomSolicitante}.");
+            }
+
             switch (accionNorm)
             {
                 case "TIRAR_DADOS":
                     if (_dadosLanzadosEnTurnoActual) return (false, "Ya lanzó los dados en este turno.");
+                    if (jugador.isEncarcelado())
+                    {
+                        ManejarTirarDados(sw, jugador);
+                        return (true, jugador.getTurnosPerdidos() > 0
+                            ? $"Jugador en la cárcel. Le restan {jugador.getTurnosPerdidos()} turnos."
+                            : "Cumplió su tiempo en la cárcel y queda libre.");
+                    }
                     ManejarTirarDados(sw, jugador);
                     return (true, $"Dados lanzados: {_ultimoDado1} + {_ultimoDado2} = {_ultimoTotalDados}.");
 

@@ -227,6 +227,14 @@ public class ControladorHardware
 
     /// <summary>
     /// Envía un valor de 2 dígitos (00 a 99) al Display de 7 Segmentos multiplexado.
+    public bool MostrarDados(int d1, int d2)
+    {
+        int valorDisplay = (Math.Clamp(d1, 1, 9) * 10) + Math.Clamp(d2, 1, 9);
+        return MostrarEnDisplay(valorDisplay);
+    }
+
+    /// <summary>
+    /// Envía un valor de 2 dígitos (00 a 99) al Display de 7 Segmentos multiplexado.
     /// SIEMPRE se intenta enviar si hay conexión física. Si no hay conexión o falla,
     /// solo se registra en log y NUNCA bloquea el servidor.
     /// </summary>
@@ -257,6 +265,12 @@ public class ControladorHardware
                 string resp = _puerto.ReadLine().Trim();
                 return resp == "OK";
             }
+            catch (TimeoutException)
+            {
+                Console.WriteLine($"[HARDWARE WARNING] Timeout temporal esperando confirmación del display.");
+                // No desconectar el puerto inmediatamente por un timeout temporal; mantener conexión activa
+                return false;
+            }
             catch (Exception ex)
             {
                 Console.WriteLine($"[HARDWARE WARNING] No se pudo enviar datos al display: {ex.Message}");
@@ -271,6 +285,7 @@ public class ControladorHardware
     /// Genera la tirada oficial de dados. Si la Raspberry Pi Pico está conectada
     /// y responde con dados electrónicos, utiliza sus valores. De lo contrario,
     /// aplica fallback inmediato y seguro a la generación aleatoria del servidor.
+    /// Los 2 displays de 7 segmentos muestran cada dado (ej: 3 y 4 se muestran como '34').
     /// </summary>
     public (int d1, int d2, int suma) TirarDados()
     {
@@ -292,7 +307,7 @@ public class ControladorHardware
                             {
                                 int pTotal = pD1 + pD2;
                                 Console.WriteLine($"[HARDWARE DADOS] Dados electrónicos recibidos de la Pico: Dado1={pD1}, Dado2={pD2} (Total={pTotal})");
-                                MostrarEnDisplay(pTotal);
+                                MostrarDados(pD1, pD2);
                                 return (pD1, pD2, pTotal);
                             }
                         }
@@ -307,7 +322,7 @@ public class ControladorHardware
         int total = d1 + d2;
 
         Console.WriteLine($"[DADOS] Resultado generado: Dado1={d1}, Dado2={d2} (Total={total})");
-        MostrarEnDisplay(total);
+        MostrarDados(d1, d2);
 
         return (d1, d2, total);
     }
