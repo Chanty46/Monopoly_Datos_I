@@ -192,6 +192,14 @@ public class CasillaPolicia : CasillaEspecial
 
     public override string aplicarCasilla(Jugador jugador, Tablero tablero)
     {
+        EnviarJugadorACarcel(jugador, tablero);
+        return $"¡La Policía detuvo a {jugador.getNombre()}! Va directo a la Cárcel por 2 turnos.";
+    }
+
+    // Lógica ÚNICA para enviar a un jugador a la cárcel. La usa esta casilla y también
+    // la regla de tres dobles consecutivos (Servidor), para no duplicar la lógica de cárcel.
+    public static void EnviarJugadorACarcel(Jugador jugador, Tablero tablero)
+    {
         jugador.setTurnosPerdidos(2);
         // Enviar a la casilla de la Cárcel (ID 6 en el tablero de 24 casillas)
         var nodoCarcel = tablero.buscarCasillaPorID(6);
@@ -199,7 +207,6 @@ public class CasillaPolicia : CasillaEspecial
         {
             jugador.setNodoActual(nodoCarcel);
         }
-        return $"¡La Policía detuvo a {jugador.getNombre()}! Va directo a la Cárcel por 2 turnos.";
     }
 }
 

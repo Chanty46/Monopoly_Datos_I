@@ -46,6 +46,13 @@ public class Servidor
     private int _ultimoTotalDados = 0;
     private int _ultimoValorDisplay = 0;
 
+    // Regla de dobles: tiradas consecutivas con dados iguales dentro del MISMO turno.
+    // Se reinicia en cada tirada que no es doble, al enviar a la cárcel por 3 dobles,
+    // al terminar el turno y si el jugador en turno se desconecta.
+    private const int MAX_DOBLES_CONSECUTIVOS = 3;
+    private int _contadorDobles = 0;
+    private string _resumenUltimaTirada = ""; // Mensaje corto de la última tirada (lo usa la vía web)
+
     // Estado RFID por jugador: "esperando" | "identificado" | "no_disponible"
     private readonly Dictionary<int, string> _rfidEstado = new();
 
@@ -327,35 +334,69 @@ public class Servidor
         // =====================================================================
         // PASO OBLIGATORIO: INTENTO DE IDENTIFICACIÓN RFID CON FALLBACK SEGURO
         // =====================================================================
-        Console.WriteLine($"[SERVER] Verificando jugador para tirada de dados (Jugador esperado: {jugador.getNombre()})...");
-        string? rfidLeido = _hw.SolicitarRfid(2500); // 2.5s timeout no bloqueante
-
-        if (!string.IsNullOrWhiteSpace(rfidLeido))
+        // Solo en la primera tirada del turno: las tiradas extra por dobles no vuelven a pedir RFID.
+        if (_contadorDobles == 0)
         {
-            var jugadorRfid = _turnos.BuscarPorRfid(rfidLeido);
-            if (jugadorRfid != null)
+            Console.WriteLine($"[SERVER] Verificando jugador para tirada de dados (Jugador esperado: {jugador.getNombre()})...");
+            string? rfidLeido = _hw.SolicitarRfid(2500); // 2.5s timeout no bloqueante
+
+            if (!string.IsNullOrWhiteSpace(rfidLeido))
             {
-                Console.WriteLine($"[SERVER] RFID confirmado para: {jugadorRfid.getNombre()}");
+                var jugadorRfid = _turnos.BuscarPorRfid(rfidLeido);
+                if (jugadorRfid != null)
+                {
+                    Console.WriteLine($"[SERVER] RFID confirmado para: {jugadorRfid.getNombre()}");
+                }
+                else
+                {
+                    Console.WriteLine($"[SERVER] RFID detectado ({rfidLeido}), pero sin jugador mapeado. Continuando con {jugador.getNombre()}.");
+                }
             }
             else
             {
-                Console.WriteLine($"[SERVER] RFID detectado ({rfidLeido}), pero sin jugador mapeado. Continuando con {jugador.getNombre()}.");
+                Console.WriteLine($"[SERVER] Sin RFID / Fallo de hardware. Aplicando fallback automático al jugador de turno: {jugador.getNombre()}.");
             }
         }
         else
         {
-            Console.WriteLine($"[SERVER] Sin RFID / Fallo de hardware. Aplicando fallback automático al jugador de turno: {jugador.getNombre()}.");
+            Console.WriteLine($"[SERVER] Tirada adicional por dobles ({_contadorDobles}/{MAX_DOBLES_CONSECUTIVOS - 1}) de {jugador.getNombre()}. No se solicita RFID de nuevo.");
         }
 
         // Tirar dados
         var (d1, d2, total) = _hw.TirarDados();
-        _dadosLanzadosEnTurnoActual = true;
         _ultimoDado1 = d1;
         _ultimoDado2 = d2;
         _ultimoTotalDados = total;
         _ultimoValorDisplay = (d1 * 10) + d2; // El display oficial refleja ambos dados (ej: 3 y 4 -> 34)
 
-        // Mover jugador en el tablero circular
+        // =====================================================================
+        // REGLA DE DOBLES
+        // =====================================================================
+        bool esDoble = d1 == d2 && d1 > 0;
+        int doblesPrevios = _contadorDobles;                 // dobles consecutivos ANTES de esta tirada
+        _contadorDobles = esDoble ? _contadorDobles + 1 : 0; // una tirada no doble rompe la cadena
+
+        // Tercer doble consecutivo: directo a la cárcel, SIN mover y SIN aplicar efecto de casilla.
+        if (esDoble && _contadorDobles >= MAX_DOBLES_CONSECUTIVOS)
+        {
+            _contadorDobles = 0;
+            _propiedadPendienteCompra = null;
+            _dadosLanzadosEnTurnoActual = true; // no puede realizar otra tirada
+
+            CasillaPolicia.EnviarJugadorACarcel(jugador, _tablero); // misma lógica de cárcel existente
+            var casillaCarcel = jugador.getNodoActual()?.getCasilla();
+
+            string detalleCarcel = $"¡Tres dobles consecutivos! {jugador.getNombre()} va directo a la Cárcel por 2 turnos y su turno termina.";
+            _resumenUltimaTirada = $"¡Tres dobles consecutivos ({d1} + {d2})! {jugador.getNombre()} va a la cárcel y su turno termina.";
+
+            writer.WriteLine($"DADOS_LANZADOS|{jugador.getID()}|{d1}|{d2}|{total}|{casillaCarcel?.getIdCasilla() ?? 0}|{casillaCarcel?.getNombre() ?? "Cárcel"}|{jugador.getSaldo()}|{detalleCarcel}");
+            TransmitirATodos($"ACTUALIZACION|{jugador.getNombre()} sacó {d1}+{d2}={total}: ¡tres dobles consecutivos! Va directo a la Cárcel y su turno termina.");
+
+            ManejarTerminarTurno(writer, jugador); // el turno termina inmediatamente
+            return;
+        }
+
+        // Mover jugador en el tablero circular (el movimiento se realiza en CADA tirada)
         var casillaDestino = _tablero.moverJugadorPorDados(jugador, total, out bool pasoPorSalida);
 
         if (pasoPorSalida)
@@ -370,6 +411,39 @@ public class Servidor
             ));
             TransmitirATodos($"SALDO_ACTUALIZADO|{jugador.getID()}|{jugador.getSaldo()}");
         }
+
+        // Doble (1º o 2º): el jugador debe tirar de nuevo. NO se aplica el efecto de la casilla intermedia.
+        if (esDoble)
+        {
+            _dadosLanzadosEnTurnoActual = false; // permite otra tirada en este mismo turno
+            _propiedadPendienteCompra = null;
+
+            // Terminar exactamente en la Salida y seguir avanzando equivale a pasar por ella: se cobra el premio.
+            if (casillaDestino is CasillaInicial)
+            {
+                jugador.agregarSaldo(200);
+                _historial.Registrar(new Transaccion(
+                    _turnos.GetNumeroRonda(),
+                    "SALIDA",
+                    "BANCO",
+                    jugador.getNombre(),
+                    200,
+                    $"{jugador.getNombre()} pasó por la Salida durante una cadena de dobles y cobró ₡200."
+                ));
+                TransmitirATodos($"SALDO_ACTUALIZADO|{jugador.getID()}|{jugador.getSaldo()}");
+            }
+
+            string detalleDobles = $"¡Dobles ({_contadorDobles}/{MAX_DOBLES_CONSECUTIVOS})! Debe tirar de nuevo. El efecto de la casilla se aplicará solo al terminar sus tiradas.";
+            _resumenUltimaTirada = $"¡Dobles! {d1} + {d2} = {total} ({_contadorDobles}/{MAX_DOBLES_CONSECUTIVOS}). Tire de nuevo.";
+
+            writer.WriteLine($"DADOS_LANZADOS|{jugador.getID()}|{d1}|{d2}|{total}|{casillaDestino.getIdCasilla()}|{casillaDestino.getNombre()}|{jugador.getSaldo()}|{detalleDobles}");
+            TransmitirATodos($"ACTUALIZACION|{jugador.getNombre()} sacó {d1}+{d2}={total} (¡dobles {_contadorDobles}/{MAX_DOBLES_CONSECUTIVOS}!) y avanzó a [{casillaDestino.getIdCasilla()}] {casillaDestino.getNombre()}. Vuelve a tirar; el efecto de la casilla se aplicará al final.");
+            return;
+        }
+
+        // Tirada normal (no doble): termina la cadena y el turno queda listo para cerrarse.
+        _dadosLanzadosEnTurnoActual = true;
+        _resumenUltimaTirada = $"Dados lanzados: {d1} + {d2} = {total}.";
 
         // Resolver la casilla (el display de 7 segmentos mantiene visible la tirada de los dados para los jugadores)
         string resultadoCasilla = casillaDestino.aplicarCasilla(jugador, _tablero);
@@ -438,7 +512,8 @@ public class Servidor
 
         string msg = $"DADOS_LANZADOS|{jugador.getID()}|{d1}|{d2}|{total}|{casillaDestino.getIdCasilla()}|{casillaDestino.getNombre()}|{jugador.getSaldo()}|{resultadoCasilla}";
         writer.WriteLine(msg);
-        TransmitirATodos($"ACTUALIZACION|{jugador.getNombre()} sacó {d1}+{d2}={total} y cayó en [{casillaDestino.getIdCasilla()}] {casillaDestino.getNombre()}. Saldo: ₡{jugador.getSaldo()}. Detalle: {resultadoCasilla}");
+        string textoCadena = doblesPrevios > 0 ? $" (última tirada de su turno, tras {doblesPrevios} dobles)" : "";
+        TransmitirATodos($"ACTUALIZACION|{jugador.getNombre()} sacó {d1}+{d2}={total}{textoCadena} y cayó en [{casillaDestino.getIdCasilla()}] {casillaDestino.getNombre()}. Saldo: ₡{jugador.getSaldo()}. Detalle: {resultadoCasilla}");
     }
 
     private (bool ok, string mensaje) ManejarComprarPropiedad(StreamWriter? writer, Jugador? jugador)
@@ -547,6 +622,7 @@ public class Servidor
         if (!_dadosLanzadosEnTurnoActual) { writer?.WriteLine("ERROR|Debe lanzar los dados antes de terminar su turno."); return (false, "Debe lanzar los dados antes de terminar su turno."); }
 
         _dadosLanzadosEnTurnoActual = false;
+        _contadorDobles = 0; // el contador de dobles se reinicia en cada turno nuevo
         _propiedadPendienteCompra = null;
 
         var siguienteJugador = _turnos.avanzarTurno();
@@ -648,6 +724,7 @@ public class Servidor
                 if (_turnos.getTurnoActual()?.getID() == jugador.getID())
                 {
                     _dadosLanzadosEnTurnoActual = false;
+                    _contadorDobles = 0;
                     _propiedadPendienteCompra = null;
                     var sig = _turnos.avanzarTurno();
                     if (sig != null && sig.getID() != jugador.getID())
@@ -932,6 +1009,7 @@ public class Servidor
                 turnoActualSaldo = turnoActual?.getSaldo() ?? 0,
                 turnoActualCasilla = turnoActual?.getNodoActual()?.getCasilla().getIdCasilla() ?? 0,
                 dadosLanzados = _dadosLanzadosEnTurnoActual,
+                doblesConsecutivos = _contadorDobles,
                 dadosUltimos = new { d1 = _ultimoDado1, d2 = _ultimoDado2, total = _ultimoTotalDados },
                 displayValor = _ultimoValorDisplay,
                 hardwareEstado = _hw.Estado.ToString(),
@@ -1063,10 +1141,10 @@ public class Servidor
                         ManejarTirarDados(sw, jugador);
                         return (true, jugador.getTurnosPerdidos() > 0
                             ? $"Jugador en la cárcel. Le restan {jugador.getTurnosPerdidos()} turnos."
-                            : "Cumplió su tiempo en la cárcel y queda libre.");
+                            : $"Cumplió su tiempo en la cárcel y queda libre. {_resumenUltimaTirada}");
                     }
                     ManejarTirarDados(sw, jugador);
-                    return (true, $"Dados lanzados: {_ultimoDado1} + {_ultimoDado2} = {_ultimoTotalDados}.");
+                    return (true, _resumenUltimaTirada);
 
                 case "COMPRAR_PROPIEDAD":
                     return ManejarComprarPropiedad(sw, jugador);
