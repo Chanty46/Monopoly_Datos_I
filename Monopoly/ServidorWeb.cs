@@ -357,18 +357,25 @@ public class ServidorWeb
 
     <!-- Modal Historial de Transacciones -->
     <div class=""modal-overlay"" id=""modal-historial"">
-        <div class=""modal-content"">
+        <div class=""modal-content"" style=""max-width:850px;"">
             <div class=""modal-header"">
                 <h3>Historial Oficial de Transacciones</h3>
                 <button class=""modal-close"" onclick=""cerrarModales()"">&times;</button>
             </div>
-            <table class=""modal-table"">
-                <thead>
-                    <tr><th>Hora</th><th>Ronda</th><th>Tipo</th><th>Origen</th><th>Destino</th><th>Monto</th><th>Detalle</th></tr>
-                </thead>
-                <tbody id=""historial-tbody""></tbody>
-            </table>
-            <div style=""margin-top:12px; display:flex; justify-content:flex-end;"">
+            <div style=""display:flex; gap:10px; margin-bottom:10px;"">
+                <input type=""text"" id=""filtro-tx-jugador"" placeholder=""Filtrar por jugador (origen/destino)..."" oninput=""filtrarTransacciones()"" style=""flex:1; background:#0f172a; border:1px solid #334155; color:#fff; padding:6px 10px; border-radius:6px; font-size:0.8rem;"">
+                <input type=""text"" id=""filtro-tx-tipo"" placeholder=""Filtrar por tipo (COMPRA, ALQUILER, SALIDA...)..."" oninput=""filtrarTransacciones()"" style=""flex:1; background:#0f172a; border:1px solid #334155; color:#fff; padding:6px 10px; border-radius:6px; font-size:0.8rem;"">
+            </div>
+            <div style=""max-height:380px; overflow-y:auto;"">
+                <table class=""modal-table"">
+                    <thead>
+                        <tr><th>Hora</th><th>Ronda</th><th>Tipo</th><th>Origen</th><th>Destino</th><th>Monto</th><th>Detalle</th></tr>
+                    </thead>
+                    <tbody id=""historial-tbody""></tbody>
+                </table>
+            </div>
+            <div style=""margin-top:12px; display:flex; justify-content:space-between; align-items:center;"">
+                <span id=""tx-conteo-info"" style=""font-size:0.75rem; color:#94a3b8;""></span>
                 <button class=""btn-secondary"" onclick=""cerrarModales()"">Cerrar</button>
             </div>
         </div>
@@ -418,7 +425,7 @@ public class ServidorWeb
     </div>
 
     <script>
-        const PLAYER_COLORS = ['#ef4444', '#3b82f6', '#10b981'];
+        const PLAYER_COLORS = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b'];
         let estadoActual = null;
         let operacionEnCurso = false;
 
@@ -689,14 +696,40 @@ public class ServidorWeb
 
         function abrirModalHistorial() {
             if (!estadoActual) return;
+            document.getElementById('filtro-tx-jugador').value = '';
+            document.getElementById('filtro-tx-tipo').value = '';
+            renderizarTablaTransacciones(estadoActual.historial || []);
+            document.getElementById('modal-historial').style.display = 'flex';
+        }
+
+        function filtrarTransacciones() {
+            if (!estadoActual || !estadoActual.historial) return;
+            const qJugador = (document.getElementById('filtro-tx-jugador').value || '').toLowerCase().trim();
+            const qTipo = (document.getElementById('filtro-tx-tipo').value || '').toLowerCase().trim();
+
+            const filtradas = estadoActual.historial.filter(function(h) {
+                const matchJugador = !qJugador || 
+                    (h.origen && h.origen.toLowerCase().includes(qJugador)) || 
+                    (h.destino && h.destino.toLowerCase().includes(qJugador));
+                const matchTipo = !qTipo || (h.tipo && h.tipo.toLowerCase().includes(qTipo));
+                return matchJugador && matchTipo;
+            });
+
+            renderizarTablaTransacciones(filtradas);
+        }
+
+        function renderizarTablaTransacciones(lista) {
             const tbody = document.getElementById('historial-tbody');
             tbody.innerHTML = '';
-            (estadoActual.historial || []).forEach(function(h) {
+            lista.forEach(function(h) {
                 const tr = document.createElement('tr');
                 tr.innerHTML = '<td>' + h.fecha + '</td><td>' + h.ronda + '</td><td>' + h.tipo + '</td><td>' + h.origen + '</td><td>' + h.destino + '</td><td style=""color:#4ade80; font-weight:bold;"">₡' + h.monto + '</td><td>' + h.detalle + '</td>';
                 tbody.appendChild(tr);
             });
-            document.getElementById('modal-historial').style.display = 'flex';
+            const infoSpan = document.getElementById('tx-conteo-info');
+            if (infoSpan) {
+                infoSpan.textContent = 'Mostrando ' + lista.length + ' de ' + (estadoActual?.historial?.length || 0) + ' transacciones registradas.';
+            }
         }
 
         function abrirModalEstado() {

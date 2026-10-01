@@ -50,24 +50,23 @@ Sistema de juego Monopoly distribuido con arquitectura Cliente-Servidor (TCP Soc
 Todas las estructuras de datos dinámicas principales fueron implementadas manualmente sin depender de colecciones genéricas de .NET:
 
 1. **Tablero (`Tablero.cs`, `NodoCasilla`)**:
-   - **Lista Circular Doblemente Enlazada**.
+   - **Lista Circular Doblemente Enlazada** (24 casillas).
    - Cada nodo apunta a `Siguiente` y `Anterior`. `Tail.Siguiente = Head` y `Head.Anterior = Tail`.
-   - Permite movimiento paso a paso y detección del paso por la casilla de salida (+₡200).
+   - Permite movimiento cíclico y detección del paso por la casilla de salida (+₡200).
 2. **Rotación de Turnos (`Turnos.cs`, `NodoTurno`)**:
-   - **Lista Circular Simplemente Enlazada**.
-   - Administra el avance de turnos infinito entre los jugadores activos, omitiendo jugadores en bancarrota.
+   - **Cola / Lista Circular Simplemente Enlazada**.
+   - Administra el avance de turnos infinito entre los 4 jugadores activos, omitiendo jugadores en bancarrota.
 3. **Propiedades del Jugador (`ListaDePropiedades.cs`, `NodoPropiedad`)**:
    - **Lista Lineal Simplemente Enlazada**.
    - Almacena las casillas adquiridas por cada jugador, cálculo de valor patrimonial total y gestión de hipotecas.
 4. **Historial de Transacciones (`Transaccion.cs`, `NodoTransaccion`)**:
-   - **Lista Lineal Simplemente Enlazada**.
-   - Registra ID único, fecha/hora, turno, tipo, origen, destino, monto y detalle.
-   - Persistencia automática en disco en `transacciones.txt`.
+   - **Lista Lineal Doblemente Enlazada**.
+   - Permite agregar en $O(1)$, recorrido bidireccional (desde la más antigua o más reciente), búsqueda por jugador y búsqueda por tipo de transacción. Persistencia automática en `transacciones.txt`.
 5. **Mazo de Cartas de Suerte / Evento (`Eventos.cs`, `NodoEvento`)**:
-   - **Cola Circular / Mazo Enlazado**.
-   - Rotación infinita de cartas positivas y negativas al caer en casillas de evento.
+   - **Cola Circular Enlazada**.
+   - Rotación infinita de cartas positivas y negativas al caer en casillas de evento (al tomar una carta pasa al final del mazo).
 
----
+> 📌 **Diagrama UML y Documentación Detallada de Entregables:** Consulte [UML_DIAGRAMA.md](UML_DIAGRAMA.md) para ver el diagrama de clases completo en Mermaid, el protocolo TCP y el manual de entrega.
 
 ## 3. Instrucciones de Compilación y Ejecución
 

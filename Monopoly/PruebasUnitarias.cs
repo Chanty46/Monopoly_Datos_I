@@ -44,6 +44,7 @@ public static class PruebasUnitarias
         TestReglasMonopoly();
         TestHardwareFallback();
         TestFase2JugadoresRfid();
+        TestNuevasClasesYRequisitosOficiales();
 
         Console.WriteLine("\n======================================================================");
         Console.WriteLine($"    RESULTADO: {_pruebasPasadas}/{_pruebasTotales} PRUEBAS PASADAS SATISFACTORIAMENTE (100%)");
@@ -366,4 +367,92 @@ public static class PruebasUnitarias
         Afirmar(jugadorPobre.getSaldo() == 500, "Saldo de jugador pobre intacto (₡500)");
         Afirmar(!propCara.tieneDuenio(), "Propiedad cara continúa sin dueño");
     }
+
+    private static void TestNuevasClasesYRequisitosOficiales()
+    {
+        Console.WriteLine("[TEST SUITE 10] Requisitos Oficiales ITCR (Banco, Dado, Juego, Búsquedas y 4 Jugadores)...");
+
+        // 10.1 Clase Dado
+        var dado = new Dado(42);
+        var (d1, d2, tot) = dado.Lanzar();
+        Afirmar(d1 >= 1 && d1 <= 6 && d2 >= 1 && d2 <= 6, "Dado: valores individuales entre 1 y 6");
+        Afirmar(tot == d1 + d2, "Dado: suma total coherente");
+        dado.FijarValores(4, 4);
+        Afirmar(dado.EsDoble, "Dado: detección correcta de doble (4 y 4)");
+
+        // 10.2 Clase Banco
+        var banco = new Banco(50000);
+        var histPrueba = new HistorialTransacciones("test_tx_oficial.txt");
+        var j1 = new Jugador(1, "Ana", null!, 1500);
+        banco.PagarPremioSalida(j1, histPrueba, 1);
+        Afirmar(j1.getSaldo() == 1700, "Banco: pago de salida +₡200 a Ana (1500 -> 1700)");
+
+        var propB = new Propiedad("Avenida Central", 10, 400, 50, "Rojo");
+        bool okCompraB = banco.CobrarCompraPropiedad(j1, propB, histPrueba, 1);
+        Afirmar(okCompraB, "Banco: cobro y registro formal de compra de propiedad");
+        Afirmar(j1.getSaldo() == 1300, "Banco: saldo descontado tras compra (1700 -> 1300)");
+
+        bool okHipo = banco.HipotecarPropiedad(j1, propB, histPrueba, 1);
+        Afirmar(okHipo && propB.getEstaHipotecada(), "Banco: hipoteca de propiedad (50% valor)");
+        Afirmar(j1.getSaldo() == 1500, "Banco: saldo aumentó ₡200 por hipoteca (1300 -> 1500)");
+
+        bool okDeshipo = banco.DeshipotecarPropiedad(j1, propB, histPrueba, 1);
+        Afirmar(okDeshipo && !propB.getEstaHipotecada(), "Banco: deshipoteca con interés (+10%)");
+        Afirmar(j1.getSaldo() == 1260, "Banco: saldo descontó ₡240 (1500 - 240)");
+
+        // 10.3 Clase Juego y Regla de Fin de Partida (Sección 18)
+        var juego = new Juego(maxTurnos: 5, rutaTransacciones: "test_tx_oficial.txt");
+        var j2 = new Jugador(2, "Beto", null!, 1000);
+        juego.Turnos.agregarJugador(j1);
+        juego.Turnos.agregarJugador(j2);
+
+        int patJ1 = juego.CalcularPatrimonio(j1);
+        Afirmar(patJ1 == 1260 + 400, "Juego: cálculo de patrimonio (saldo ₡1260 + propiedad ₡400 = ₡1660)");
+
+        // Simular turnos hasta límite
+        for (int i = 0; i < 5; i++)
+        {
+            juego.RegistrarFinDeTurno();
+        }
+        Afirmar(juego.PartidaFinalizada, "Juego: finalización por límite de turnos alcanzado");
+        Afirmar(juego.Ganador == "Ana", "Juego: ganador declarado por mayor patrimonio (Ana)");
+
+        // 10.4 HistorialTransacciones (Lista Doble) - Búsquedas y Recorridos (Sección 12)
+        var todasAntiguas = histPrueba.RecorrerDesdeMasAntigua();
+        var todasRecientes = histPrueba.RecorrerDesdeMasReciente();
+        Afirmar(todasAntiguas.Length >= 4, "Historial: recorrido desde más antigua contiene registros");
+        Afirmar(todasRecientes.Length >= 4, "Historial: recorrido desde más reciente contiene registros");
+        Afirmar(todasAntiguas[0].Id == todasRecientes[^1].Id, "Historial: orden inverso comprobado bidireccionalmente");
+
+        var txsAna = histPrueba.BuscarPorJugador("Ana");
+        Afirmar(txsAna.Length >= 4, "Historial: búsqueda por jugador ('Ana') retorna coincidencias correctas");
+
+        var txsCompra = histPrueba.BuscarPorTipo("COMPRA");
+        Afirmar(txsCompra.Length >= 1, "Historial: búsqueda por tipo ('COMPRA') retorna coincidencias correctas");
+
+        string textoCompleto = histPrueba.ImprimirTodas();
+        Afirmar(textoCompleto.Contains("Avenida Central"), "Historial: ImprimirTodas() genera reporte completo");
+
+        // 10.5 Soporte formal para 4 jugadores (Sección 1 y 20)
+        var turnos4 = new ListaTurnos();
+        turnos4.agregarJugador(new Jugador(1, "J1", null!, 1500));
+        turnos4.agregarJugador(new Jugador(2, "J2", null!, 1500));
+        turnos4.agregarJugador(new Jugador(3, "J3", null!, 1500));
+        turnos4.agregarJugador(new Jugador(4, "J4", null!, 1500));
+        Afirmar(turnos4.GetTotalJugadores() == 4, "Turnos: 4 jugadores registrados satisfactoriamente");
+
+        Afirmar(turnos4.getTurnoActual()!.getID() == 1, "Turno 1: Jugador 1");
+        turnos4.avanzarTurno();
+        Afirmar(turnos4.getTurnoActual()!.getID() == 2, "Turno 2: Jugador 2");
+        turnos4.avanzarTurno();
+        Afirmar(turnos4.getTurnoActual()!.getID() == 3, "Turno 3: Jugador 3");
+        turnos4.avanzarTurno();
+        Afirmar(turnos4.getTurnoActual()!.getID() == 4, "Turno 4: Jugador 4");
+        turnos4.avanzarTurno();
+        Afirmar(turnos4.getTurnoActual()!.getID() == 1, "Turno 5: Retorno circular al Jugador 1");
+
+        // Limpieza de archivo temporal de prueba
+        try { if (System.IO.File.Exists("test_tx_oficial.txt")) System.IO.File.Delete("test_tx_oficial.txt"); } catch { }
+    }
 }
+

@@ -55,3 +55,6 @@
 13,2026-09-30 17:05:08,4,COMPRA,Jugador_3,BANCO,140,"Jugador_3 compró Barrio Escalante por ₡140."
 14,2026-09-30 17:05:17,5,EVENTO,BANCO,Jugador_1,150,"Error Bancario: El banco cometió un error a tu favor. Cobra ₡150."
 15,2026-09-30 17:05:37,5,EVENTO,Jugador_2,BANCO,50,"Multa de Tránsito: Exceso de velocidad camino a la propiedad. Paga ₡50."
+1,2026-10-01 14:57:45,1,CONEXION,SISTEMA,Alfa,1500,"Jugador Alfa (ID 1) ingresó a la partida con ₡1500."
+2,2026-10-01 14:57:45,1,CONEXION,SISTEMA,Beta,1500,"Jugador Beta (ID 2) ingresó a la partida con ₡1500."
+3,2026-10-01 14:57:46,1,COMPRA,Alfa,BANCO,100,"Alfa compró Paseo Colón por ₡100."

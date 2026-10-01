@@ -11,23 +11,27 @@ namespace MonopolyDistribuido;
 
 public class Servidor
 {
-    private const int MAX_JUGADORES = 3;
+    private const int MAX_JUGADORES = 4;
 
     // Tabla de UIDs RFID conocidos → ID de jugador (1-based)
     // El ID de jugador se asigna inmediatamente al conectar; RFID solo enriquece
     // el registro una vez detectado. La ausencia de RFID NUNCA bloquea al jugador.
     private static readonly Dictionary<string, int> RFID_CONOCIDOS = new(StringComparer.OrdinalIgnoreCase)
     {
-        { "4173AA6E", 1 },  // Ficha Roja
-        { "21775764", 2 },  // Ficha Azul
-        { "831785A6", 3 },  // Ficha Verde
+        { "4173AA6E", 1 },  // Ficha Roja - Jugador 1
+        { "21775764", 2 },  // Ficha Azul - Jugador 2
+        { "831785A6", 3 },  // Ficha Verde - Jugador 3
+        { "F5A198B2", 4 },  // Ficha Amarilla - Jugador 4
     };
 
     private readonly TcpListener _listener;
     private readonly ControladorHardware _hw;
+    private readonly Juego _juego;
     private readonly Tablero _tablero;
     private readonly ListaTurnos _turnos;
     private readonly HistorialTransacciones _historial;
+    private readonly Banco _banco;
+    private readonly Dado _dado;
     private readonly Dictionary<TcpClient, Jugador> _clientes = new();
     private readonly object _lockJuego = new();
     private bool _corriendo = true;
@@ -45,13 +49,19 @@ public class Servidor
     // Estado RFID por jugador: "esperando" | "identificado" | "no_disponible"
     private readonly Dictionary<int, string> _rfidEstado = new();
 
+    public Juego GetJuego() => _juego;
+    public Banco GetBanco() => _banco;
+
     public Servidor(int puertoTcp, ControladorHardware hardware)
     {
         _hw = hardware;
-        _tablero = new Tablero();
+        _juego = new Juego(maxTurnos: 100, rutaTransacciones: "transacciones.txt");
+        _tablero = _juego.Tablero;
         _tablero.InicializarTablero24();
-        _turnos = new ListaTurnos();
-        _historial = new HistorialTransacciones("transacciones.txt");
+        _turnos = _juego.Turnos;
+        _historial = _juego.Historial;
+        _banco = _juego.Banco;
+        _dado = _juego.Dado;
         _listener = new TcpListener(IPAddress.Any, puertoTcp);
     }
 
@@ -546,8 +556,13 @@ public class Servidor
             return (false, "No hay más jugadores activos.");
         }
 
-        // Verificar si solo queda un jugador activo (ganador de la partida)
-        if (_turnos.CantidadJugadoresActivos() == 1 && _turnos.GetTotalJugadores() > 1)
+        // Registrar fin de turno en el modelo de Juego y evaluar condiciones de victoria
+        _juego.RegistrarFinDeTurno();
+        if (_juego.PartidaFinalizada)
+        {
+            TransmitirATodos($"ACTUALIZACION|🏆 ¡PARTIDA FINALIZADA! Ganador: {_juego.Ganador}. Motivo: {_juego.MotivoFinPartida}");
+        }
+        else if (_turnos.CantidadJugadoresActivos() == 1 && _turnos.GetTotalJugadores() > 1)
         {
             TransmitirATodos($"ACTUALIZACION|🏆 ¡PARTIDA FINALIZADA! ¡{siguienteJugador.getNombre()} ha ganado el Monopoly!");
         }
