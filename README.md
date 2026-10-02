@@ -1,143 +1,121 @@
 # Monopoly Distribuido — Algoritmos y Estructuras de Datos I
 
-Sistema de juego Monopoly distribuido con arquitectura Cliente-Servidor (TCP Sockets), autoridad centralizada en el servidor, estructuras de datos dinámicas enlazadas propias y soporte tolerante a fallos para hardware embebido (Raspberry Pi Pico con lector RFID RC522 y Display multiplexado de 7 segmentos de 2 dígitos).
+Proyecto de Monopoly distribuido desarrollado para el curso **Algoritmos y Estructuras de Datos 1** (Semestre 2 2026) en el **Tecnológico de Costa Rica (TEC)**.
+
+El sistema funciona con arquitectura **Cliente-Servidor (TCP)** centralizada, incluye una **interfaz gráfica Web interactiva**, cuenta con **estructuras de datos lineales propias** (sin usar las librerías de colecciones de .NET) y se integra opcionalmente con hardware real (**Raspberry Pi Pico** con lector RFID y display de 7 segmentos).
 
 ---
 
-## 1. Arquitectura del Sistema
+## 🏛️ Arquitectura del Sistema
 
 ```
-                          ┌─────────────────────────────────────┐
-                          │         SERVIDOR MONOPOLY           │
-                          │        (Autoridad Oficial)          │
-                          │ - Tablero (Lista Circular Doble)    │
-                          │ - Turnos (Lista Circular Simple)    │
-                          │ - Transacciones (Lista Enlazada)    │
-                          │ - Eventos (Mazo Circular)           │
-                          │ - Archivo 'transacciones.txt'       │
-                          └───────┬────────────────────┬────────┘
-                                  │                    │
-                    TCP / Sockets │                    │ USB Serial / Mock
-                      Puerto 5000 │                    │ 115200 baud
-                                  │                    │
-                ┌─────────────────┴───────────────┐ ┌──┴───────────────────────┐
-                │                                 │ │  ControladorHardware.cs  │
-         ┌──────▼──────┐                   ┌──────▼─▼┐ - Detección no bloqueante│
-         │  CLIENTE 1  │                   │ CLIENTE │ - Reconexión background │
-         │ (Jugador 1) │                   │ (Jugador│ - RFID con fallback     │
-         │ Consola CLI │                   │ Consola │ - 7 segmentos garantiz. │
-         └─────────────┘                   └─────────┘└─────────┬──────────────┘
-                                                                │
-                                                       ┌────────▼────────┐
-                                                       │  Raspberry Pi   │
-                                                       │      Pico       │
-                                                       │ - RFID RC522    │
-                                                       │ - Display 7 Seg │
-                                                       │ - LED estado    │
-                                                       └─────────────────┘
+                      ┌───────────────────────────────────────────┐
+                      │             SERVIDOR MONOPOLY             │
+                      │           (Autoridad Central)             │
+                      │  • Tablero (Lista Circular Doble)         │
+                      │  • Turnos (Cola / Lista Circular Simple)  │
+                      │  • Transacciones (Lista Lineal Doble)     │
+                      │  • Mazo de Eventos (Cola Circular)        │
+                      │  • Banco & Dados Electrónicos             │
+                      └─────────────┬───────────────────────┬─────┘
+                                    │                       │
+                      TCP / Sockets │         HTTP / REST   │ USB Serial / Fallback
+                        Puerto 5000 │         Puerto 8080   │ 115200 baud
+                                    │                       │
+      ┌─────────────────────────────┼───────────────┐       │
+      │                             │               │       ▼
+┌─────▼───────┐               ┌─────▼───────┐ ┌─────▼───────┴─────┐
+│  CLIENTES   │               │   WEB GUI   │ │ControladorHardware│
+│ Consola CLI │               │  Navegador  │ │(Auto-reconexión y │
+│(Jugadores 1-4)              │(Tablero 24c)│ │fallback si no hay)│
+└─────────────┘               └─────────────┘ └─────┬─────────────┘
+                                                    │
+                                          ┌─────────▼─────────┐
+                                          │ Raspberry Pi Pico │
+                                          │  • Lector RC522   │
+                                          │  • 7-Seg Multiplex│
+                                          └───────────────────┘
 ```
-
-### Principios Fundamentales
-* **Servidor como Autoridad Central**: El cliente **nunca** modifica saldos, posiciones ni turnos directamente. Envía solicitudes (`TIRAR_DADOS`, `COMPRAR_PROPIEDAD`, etc.) y el servidor valida las reglas oficiales antes de aplicar cambios y difundirlos.
-* **El Juego NO depende de la Raspberry**: Si la Raspberry Pi Pico no está conectada, se desconecta durante la partida o el puerto está ocupado (ej. por Thonny), el juego continúa de forma fluida e ininterrumpida.
-* **Fallback Automático de RFID**: Se intenta leer la tarjeta RFID preferentemente (timeout de 2.5s). Si no hay tarjeta o falla el hardware, el servidor utiliza automáticamente el jugador en turno sin bloquear el sistema.
-* **Display de 7 Segmentos**: Toda tirada de dados, posición en el tablero e ID de turno se envía al display de 7 segmentos de 2 dígitos (rango 00-99) sin comprometer el hilo de ejecución si el hardware no responde.
 
 ---
 
-## 2. Estructuras de Datos Propias (Requisitos de Cátedra)
+## ⚡ Guía Rápida de Inicio
 
-Todas las estructuras de datos dinámicas principales fueron implementadas manualmente sin depender de colecciones genéricas de .NET:
-
-1. **Tablero (`Tablero.cs`, `NodoCasilla`)**:
-   - **Lista Circular Doblemente Enlazada** (24 casillas).
-   - Cada nodo apunta a `Siguiente` y `Anterior`. `Tail.Siguiente = Head` y `Head.Anterior = Tail`.
-   - Permite movimiento cíclico y detección del paso por la casilla de salida (+₡200).
-2. **Rotación de Turnos (`Turnos.cs`, `NodoTurno`)**:
-   - **Cola / Lista Circular Simplemente Enlazada**.
-   - Administra el avance de turnos infinito entre los 4 jugadores activos, omitiendo jugadores en bancarrota.
-3. **Propiedades del Jugador (`ListaDePropiedades.cs`, `NodoPropiedad`)**:
-   - **Lista Lineal Simplemente Enlazada**.
-   - Almacena las casillas adquiridas por cada jugador, cálculo de valor patrimonial total y gestión de hipotecas.
-4. **Historial de Transacciones (`Transaccion.cs`, `NodoTransaccion`)**:
-   - **Lista Lineal Doblemente Enlazada**.
-   - Permite agregar en $O(1)$, recorrido bidireccional (desde la más antigua o más reciente), búsqueda por jugador y búsqueda por tipo de transacción. Persistencia automática en `transacciones.txt`.
-5. **Mazo de Cartas de Suerte / Evento (`Eventos.cs`, `NodoEvento`)**:
-   - **Cola Circular Enlazada**.
-   - Rotación infinita de cartas positivas y negativas al caer en casillas de evento (al tomar una carta pasa al final del mazo).
-
-> 📌 **Diagrama UML y Documentación Detallada de Entregables:** Consulte [UML_DIAGRAMA.md](UML_DIAGRAMA.md) para ver el diagrama de clases completo en Mermaid, el protocolo TCP y el manual de entrega.
-
-## 3. Instrucciones de Compilación y Ejecución
-
-El proyecto está configurado para .NET 10 (o .NET 8) y compila limpiamente en Linux, Windows y macOS.
-
-### Compilar el proyecto
+### 1. Compilar
 ```bash
 dotnet build Monopoly/Monopoly.csproj
 ```
 
-### Ejecutar la Prueba Crítica de Demostración (Recomendada para la defensa)
-Demuestra automáticamente el arranque sin hardware, conexión TCP de 2 clientes, tirada de dados, compra de propiedades, cobro de alquiler, fallback de RFID, actualización al 7 segmentos y archivo de transacciones:
+### 2. Iniciar el Servidor (con Interfaz Web)
+Abre una terminal y ejecuta:
 ```bash
-dotnet run --project Monopoly/Monopoly.csproj -- --test
+dotnet run --project Monopoly/Monopoly.csproj -- --server
 ```
+Listo. El servidor estará escuchando en el puerto TCP `5000` y levantará automáticamente el **tablero interactivo en vivo** en:
+👉 **`http://localhost:8080`**
 
-### Ejecutar Batería de Pruebas Unitarias (48/48 Pruebas de Algoritmos y Estructuras)
-Valida enlaces dobles del tablero, enlaces simples de turnos, mazo circular, eliminación de propiedades, persistencia y polimorfismo:
+Desde esa página puedes ver el tablero de 24 casillas, mover fichas, comprar propiedades, ver el display de 7 segmentos virtual y revisar el historial de transacciones.
+
+### 3. Conectar Jugadores (Consola CLI)
+En otra terminal (o desde otra computadora en la misma red cambiando la IP):
 ```bash
-dotnet run --project Monopoly/Monopoly.csproj -- --unit-tests
+dotnet run --project Monopoly/Monopoly.csproj -- --client 127.0.0.1 5000 TuNombre
 ```
+*Soporta hasta 4 jugadores simultáneos.*
 
-### Iniciar el Servidor de Juego (con Tablero Gráfico Web en vivo)
-```bash
-dotnet run --project Monopoly/Monopoly.csproj -- --server 5000
-```
-* Una vez iniciado el servidor, abra su navegador web en: **`http://localhost:8080`** (o `http://<IP_SERVIDOR>:8080`).
-* Podrá ver el **tablero de 24 casillas en tiempo real**, las fichas de los jugadores moviéndose, las compras de propiedades, el display de 7 segmentos de la Pico y el feed de transacciones.
-
-### Iniciar Clientes (desde la misma máquina o computadoras distintas en red)
-```bash
-dotnet run --project Monopoly/Monopoly.csproj -- --client 127.0.0.1 5000 Jugador1
-```
-*(Reemplazar `127.0.0.1` por la IP local del servidor si se juega desde otra PC).*
-
-### Menú Interactivo (si se ejecuta sin parámetros)
+### 4. Menú Interactivo
+Si prefieres elegir qué iniciar desde un menú en consola:
 ```bash
 dotnet run --project Monopoly/Monopoly.csproj
 ```
 
 ---
 
-## 4. Protocolo de Comunicación TCP
+## 🧪 Pruebas Automatizadas
 
-Los mensajes viajan sobre sockets TCP como líneas de texto UTF-8 delimitadas por `\n` y campos separados por `|`:
+* **Batería de Pruebas Unitarias (123 pruebas):**  
+  Verifica cada estructura de datos, enlaces circulares, reglas de compra, hipotecas y fallbacks:
+  ```bash
+  dotnet run --project Monopoly/Monopoly.csproj -- --unit-tests
+  ```
 
-| Comando (Cliente $\rightarrow$ Servidor) | Parámetros | Descripción |
-|---|---|---|
-| `CONECTAR` | `<nombre>` | Registra un nuevo jugador y le asigna saldo inicial (₡1500). |
-| `TIRAR_DADOS` | — | Solicita RFID (con fallback), tira los 2 dados y avanza la posición. |
-| `COMPRAR_PROPIEDAD` | — | Compra la propiedad de la casilla actual si está libre y hay saldo. |
-| `NO_COMPRAR` | — | Rechaza la compra de la propiedad actual. |
-| `TERMINAR_TURNO` | — | Concluye el turno actual y lo rota al siguiente jugador activo. |
-| `CONSULTAR_ESTADO` | — | Obtiene el estado consolidado de la partida (jugadores, saldos, posiciones). |
-| `CONSULTAR_TRANSACCIONES` | — | Consulta las últimas operaciones económicas oficiales. |
-| `HIPOTECAR` | `<idCasilla>` | Hipoteca la propiedad y entrega el 50% de su valor al dueño. |
-| `DESHIPOTECAR` | `<idCasilla>` | Cancela la hipoteca pagando el 50% + 10% de interés. |
+* **Prueba de Demostración Rápida:**  
+  Simula una partida completa de 2 jugadores con tiradas, compras, eventos y persistencia en segundos:
+  ```bash
+  dotnet run --project Monopoly/Monopoly.csproj -- --integration-test
+  ```
 
 ---
 
-## 5. Módulo de Hardware (Raspberry Pi Pico)
+## 📦 Estructuras de Datos Utilizadas
 
-* **Firmware**: MicroPython ubicado en `Monopoly/RASP/main.py` y `config_pines.py`.
-* **Conexión Serial**: Puerto USB CDC-ACM (115200 baudios, `/dev/ttyACM*` en Linux o `COM*` en Windows).
-* **Comandos Seriales**:
-  - `READID` $\rightarrow$ Devuelve UID hexadecimal de la tarjeta RFID o `TIMEOUT`.
-  - `DISPLAY NN` $\rightarrow$ Muestra el número `NN` (00-99) en el display multiplexado.
-  - `LEDON` / `LEDOFF` $\rightarrow$ Control del LED de estado en GP20.
-  - `ISDARK` $\rightarrow$ Lectura del sensor de luz LDR.
-* **Herramienta PLUS Independiente**:
-  Existe un proyecto de consola aislado para probar el puerto serial directamente con la Pico sin levantar el servidor:
-  ```bash
-  dotnet run --project Monopoly/ControladorSerial_PLUS/controlador.csproj
-  ```
+Cumpliendo con los requisitos de la cátedra, **no se usaron listas ni colas genéricas de .NET (`List`, `LinkedList`, `Queue`)** para la lógica del juego. Todas las estructuras fueron programadas desde cero:
+
+1. **Tablero (`Tablero.cs`):**  
+   **Lista circular doblemente enlazada** de 24 casillas. Cada nodo conoce su casilla anterior y siguiente. Permite recorrer el tablero cíclicamente y detectar cuándo un jugador cruza la Salida para cobrar sus ₡200.
+2. **Turnos (`Turnos.cs`):**  
+   **Cola / Lista circular simple**. Administra la rotación fluida de turnos entre los 4 jugadores. Si un jugador cae en bancarrota, se omite automáticamente sin romper el ciclo.
+3. **Propiedades del Jugador (`ListaDePropiedades.cs`):**  
+   **Lista lineal simplemente enlazada**. Cada jugador almacena aquí sus casillas adquiridas para calcular su patrimonio y gestionar hipotecas.
+4. **Historial de Transacciones (`Transaccion.cs`):**  
+   **Lista lineal doblemente enlazada**. Registra cada movimiento de dinero (compras, alquileres, paso por inicio). Permite recorridos bidireccionales (de la más antigua a la más reciente y viceversa), búsquedas por jugador o tipo, y se guarda automáticamente en `transacciones.txt`.
+5. **Mazo de Eventos (`Eventos.cs`):**  
+   **Cola circular enlazada**. Cada vez que un jugador saca una carta de suerte, esta pasa al final del mazo para reutilizarse de forma infinita.
+
+---
+
+## 🔌 Integración con Hardware (Raspberry Pi Pico)
+
+El proyecto incluye soporte para un cajero físico en protoboard:
+* **Lector RFID RC522:** Identifica la tarjeta de cada jugador (billetera electrónica).
+* **Display de 7 segmentos de 2 dígitos:** Muestra el resultado de los dados, las casillas y los turnos con multiplexado corregido por software.
+* **Tolerancia a fallos:** Si la Raspberry no está conectada o falla el lector RFID, **el juego nunca se detiene**. El servidor aplica un fallback automático usando el ID de cada jugador para que la partida continúe con total normalidad.
+
+Los scripts en MicroPython y la guía de pines están ubicados en la carpeta [`Monopoly/RASP/`](Monopoly/RASP/).
+
+---
+
+## 📄 Documentación y Entregables
+
+* 📊 **Diagrama de Clases UML y Protocolo TCP:** Consulta [UML_DIAGRAMA.md](UML_DIAGRAMA.md) para ver el diagrama formal en Mermaid, la descripción detallada de mensajes de red y la arquitectura.
+* 🧾 **Registro de Transacciones:** Consulta [transacciones.txt](transacciones.txt) para revisar el historial generado por las partidas.

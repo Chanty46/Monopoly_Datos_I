@@ -1,8 +1,5 @@
 ﻿ID,FECHA,TURNO,TIPO,ORIGEN,DESTINO,MONTO,DESCRIPCION
-1,2026-09-30 15:26:44,1,CONEXION,SISTEMA,Jugador1,1500,"Jugador Jugador1 (ID 1) ingresó a la partida con ₡1500."
-2,2026-09-30 15:26:50,1,COMPRA,Jugador1,BANCO,120,"Jugador1 compró Calle Real por ₡120."
-3,2026-09-30 15:26:50,2,CONEXION,SISTEMA,Jugador2,1500,"Jugador Jugador2 (ID 2) ingresó vía Web con ₡1500."
-4,2026-09-30 15:26:50,2,CONEXION,SISTEMA,Jugador3,1500,"Jugador Jugador3 (ID 3) ingresó vía Web con ₡1500."
-1,2026-09-30 15:27:34,1,CONEXION,SISTEMA,Alfa,1500,"Jugador Alfa (ID 1) ingresó a la partida con ₡1500."
-2,2026-09-30 15:27:34,1,CONEXION,SISTEMA,Beta,1500,"Jugador Beta (ID 2) ingresó a la partida con ₡1500."
-3,2026-09-30 15:27:35,1,COMPRA,Alfa,BANCO,200,"Alfa compró San Pedro por ₡200."
+1,2026-10-01 22:25:51,1,CONEXION,SISTEMA,JugadorA,1500,"Jugador JugadorA (ID 1) ingresó a la partida con ₡1500."
+2,2026-10-01 22:25:51,1,CONEXION,SISTEMA,JugadorB,1500,"Jugador JugadorB (ID 2) ingresó a la partida con ₡1500."
+1,2026-10-01 22:26:01,1,CONEXION,SISTEMA,J1,1500,"Jugador J1 (ID 1) ingresó a la partida con ₡1500."
+2,2026-10-01 22:26:01,1,CONEXION,SISTEMA,J2,1500,"Jugador J2 (ID 2) ingresó a la partida con ₡1500."
